@@ -1,0 +1,72 @@
+<?php
+
+/**
+ * Partial: Nicht-eingebunden – Galerie eines Medientyps
+ *
+ * Erwartet aus Parent-Scope:
+ *   $aktive (mit typ_key, typ_name, anzahl, medien)
+ *   $unverknuepftUrl (Closure)
+ *   $tree
+ */
+
+use Sammlungen\Dto\SammlungDto;
+use Fisharebest\Webtrees\I18N;
+
+?>
+
+    <!-- ============================================================
+         NICHT-EINGEBUNDEN: Galerie eines Medientyps
+    ============================================================ -->
+        <?php
+        $typIcon = SammlungDto::ICONS[strtolower($aktive['typ_key'])] ?? 'fa-folder-open';
+        ?>
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                  style="width:56px;height:56px;background:#dc354520;border:2px solid #dc3545">
+                <i class="fas <?= e($typIcon) ?> fs-4" style="color:#dc3545"></i>
+            </span>
+            <div>
+                <h2 class="mb-0"><?= e($aktive['typ_name']) ?></h2>
+                <span class="badge bg-danger">
+                    <?= I18N::plural('%s Objekt', '%s Objekte', $aktive['anzahl'], I18N::number($aktive['anzahl'])) ?>
+                </span>
+                <p class="text-muted small mb-0 mt-1">
+                    <?= I18N::translate('Nicht eingebundene Medienobjekte') ?>
+                </p>
+            </div>
+            <a href="<?= e($unverknuepftUrl()) ?>"
+               class="btn btn-sm btn-outline-secondary ms-auto">
+                <i class="fas fa-arrow-left me-1"></i><?= I18N::translate('Zurück') ?>
+            </a>
+        </div>
+
+        <?php if ($aktive['medien'] === []) : ?>
+            <div class="alert alert-info">
+                <?= I18N::translate('Keine Objekte in dieser Kategorie.') ?>
+            </div>
+        <?php else : ?>
+            <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xl-6 g-3">
+                <?php foreach ($aktive['medien'] as $xref) : ?>
+                    <div class="col">
+                        <a href="<?= e(route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaPage::class, ['tree' => $tree->name(), 'xref' => $xref])) ?>"
+                           class="d-block ratio ratio-1x1 text-decoration-none">
+                            <img src="<?= e(route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaFileThumbnail::class, [
+                                'tree' => $tree->name(), 'xref' => $xref, 'w' => 240, 'h' => 240,
+                            ])) ?>"
+                                 alt="<?= e($xref) ?>"
+                                 loading="lazy"
+                                 class="object-fit-cover rounded shadow-sm w-100 h-100">
+                        </a>
+                    </div>
+                <?php endforeach ?>
+            </div>
+            <?php if ($aktive['anzahl'] > count($aktive['medien'])) : ?>
+                <p class="text-muted small mt-3">
+                    <?= I18N::translate(
+                        'Vorschau: %s von %s Objekten.',
+                        count($aktive['medien']),
+                        I18N::number($aktive['anzahl'])
+                    ) ?>
+                </p>
+            <?php endif ?>
+        <?php endif ?>

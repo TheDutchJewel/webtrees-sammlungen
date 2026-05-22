@@ -1,0 +1,541 @@
+<?php
+
+/**
+ * Partial: Detailansicht einer ordner-basierten Sammlung
+ * Enthält Galerie, Lightbox, Abgleich (EXIF↔webtrees), Datei-Umbenennen, EXIF-Schreiben
+ *
+ * Erwartet aus Parent-Scope:
+ *   $aktive (mit sammlung)
+ *   $tree, $treeName, $istAdmin
+ *   $sammlungUrl (Closure)
+ */
+
+use Fisharebest\Webtrees\I18N;
+
+?>
+
+    <!-- ============================================================
+         DETAILANSICHT einer ordner-basierten Sammlung
+    ============================================================ -->
+        <?php $s = $aktive['sammlung']; ?>
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                  style="width:56px;height:56px;background:<?= e($s->farbe) ?>20;border:2px solid <?= e($s->farbe) ?>">
+                <i class="fas fa-<?= e($s->icon) ?> fs-4" style="color:<?= e($s->farbe) ?>"></i>
+            </span>
+            <div>
+                <h2 class="mb-0"><?= e($s->name) ?></h2>
+                <span class="badge bg-secondary">
+                    <?= I18N::plural('%s Objekt', '%s Objekte', $aktive['anzahl'], I18N::number($aktive['anzahl'])) ?>
+                </span>
+                <?php if ($s->beschreibung !== null) : ?>
+                    <p class="text-muted small mb-0 mt-1"><?= nl2br(e($s->beschreibung)) ?></p>
+                <?php endif ?>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-folder me-1"></i><?= e($s->ordner) ?>
+                </p>
+            </div>
+            <a href="<?= e(route('sammlungen.sammlungen', ['tree' => $treeName])) ?>"
+               class="btn btn-sm btn-outline-secondary ms-auto">
+                <i class="fas fa-arrow-left me-1"></i><?= I18N::translate('Zurück') ?>
+            </a>
+        </div>
+
+        <?php if ($aktive['anzahl'] === 0) : ?>
+            <div class="alert alert-info">
+                <?= I18N::translate('Keine Dateien in diesem Ordner gefunden.') ?>
+            </div>
+
+        <?php elseif ($aktive['istBild'] && $aktive['istRaster']) : ?>
+            <!-- Foto-Raster: gleichförmiges Grid, sachlich -->
+            <div class="row row-cols-3 row-cols-sm-4 row-cols-lg-5 row-cols-xl-6 g-2" id="archiv-galerie">
+                <?php foreach ($aktive['bilder'] as $idx => $bild) : ?>
+                    <?php
+                    $fullUrl  = route('sammlungen.media-datei', ['tree' => $treeName, 'pfad' => $bild['pfad']]);
+                    $mediaUrl = $bild['m_id'] !== null
+                        ? route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaPage::class, ['tree' => $tree->name(), 'xref' => $bild['m_id']])
+                        : '';
+                    $caption  = $bild['exif']['beschreibung'] !== '' ? $bild['exif']['beschreibung'] : ($bild['titel'] !== '' ? $bild['titel'] : $bild['datei']);
+                    $lbData   = json_encode(['datum'=>$bild['exif']['datum'],'datum_iso'=>$bild['exif']['datum_iso'],'exif_beschreibung'=>$bild['exif']['beschreibung'],'personen'=>$bild['personen'],'keywords'=>$bild['exif']['keywords']??[],'media'=>$mediaUrl,'wt_titel'=>$bild['wt']['titel']??'','wt_notiz'=>$bild['wt']['notiz']??'','wt_personen'=>$bild['wt']['personen']??[],'wt_edit'=>$mediaUrl,'in_sammlungen'=>$bild['in_sammlungen']??[],'breite'=>$bild['exif']['breite'],'hoehe'=>$bild['exif']['hoehe'],'groesse_kb'=>$bild['exif']['groesse_kb'],'format'=>strtoupper($bild['format']),'thumb'=>$fullUrl], JSON_UNESCAPED_UNICODE);
+                    ?>
+                    <div class="col">
+                        <a href="#"
+                           class="archiv-gallery-item d-block ratio ratio-1x1 text-decoration-none position-relative overflow-hidden rounded archiv-thumb"
+                           data-idx="<?= $idx ?>"
+                           data-full="<?= e($fullUrl) ?>"
+                           data-title="<?= e($caption) ?>"
+                           data-info="<?= e($lbData) ?>">
+                            <!-- Blur-Hintergrund -->
+                            <div class="archiv-blur-bg"
+                                 style="background-image:url('<?= e($fullUrl) ?>')"></div>
+                            <!-- Hauptbild: vollständig, kein Crop -->
+                            <img src="<?= e($fullUrl) ?>"
+                                 alt="<?= e($caption) ?>"
+                                 loading="lazy"
+                                 class="archiv-photo-main"
+                                 onerror="this.closest('.col').style.display='none'">
+                        </a>
+                    </div>
+                <?php endforeach ?>
+            </div>
+            <p class="text-muted small mt-3">
+                <?= I18N::plural('%s Foto', '%s Fotos', $aktive['anzahl'], I18N::number($aktive['anzahl'])) ?>
+                · <?= I18N::translate('Seite %s von %s', $aktive['seite'], $aktive['seiten_gesamt']) ?>
+                · <?= I18N::translate('Klicken zum Vergrößern') ?>
+            </p>
+
+        <?php elseif ($aktive['istBild'] && $aktive['istGemischt']) : ?>
+            <!-- Gemischt: Foto-Raster oben, Dokumentenliste unten -->
+            <?php if ($aktive['bilder'] !== []) : ?>
+                <h6 class="text-muted mb-2"><i class="fas fa-image me-1"></i><?= I18N::translate('Fotos') ?></h6>
+                <div class="row row-cols-3 row-cols-sm-4 row-cols-lg-5 row-cols-xl-6 g-2 mb-4" id="archiv-galerie">
+                    <?php foreach ($aktive['bilder'] as $idx => $bild) : ?>
+                        <?php
+                        $fullUrl  = route('sammlungen.media-datei', ['tree' => $treeName, 'pfad' => $bild['pfad']]);
+                        $mediaUrl = $bild['m_id'] !== null ? route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaPage::class, ['tree' => $tree->name(), 'xref' => $bild['m_id']]) : '';
+                        $caption  = $bild['exif']['beschreibung'] !== '' ? $bild['exif']['beschreibung'] : ($bild['titel'] !== '' ? $bild['titel'] : $bild['datei']);
+                        $lbData   = json_encode(['datum'=>$bild['exif']['datum'],'datum_iso'=>$bild['exif']['datum_iso'],'exif_beschreibung'=>$bild['exif']['beschreibung'],'personen'=>$bild['personen'],'keywords'=>$bild['exif']['keywords']??[],'media'=>$mediaUrl,'wt_titel'=>$bild['wt']['titel']??'','wt_notiz'=>$bild['wt']['notiz']??'','wt_personen'=>$bild['wt']['personen']??[],'wt_edit'=>$mediaUrl,'in_sammlungen'=>$bild['in_sammlungen']??[],'breite'=>$bild['exif']['breite'],'hoehe'=>$bild['exif']['hoehe'],'groesse_kb'=>$bild['exif']['groesse_kb'],'format'=>strtoupper($bild['format']),'thumb'=>$fullUrl], JSON_UNESCAPED_UNICODE);
+                        ?>
+                        <div class="col">
+                            <a href="#" class="archiv-gallery-item d-block ratio ratio-1x1 text-decoration-none overflow-hidden rounded"
+                               data-idx="<?= $idx ?>" data-full="<?= e($fullUrl) ?>" data-title="<?= e($caption) ?>" data-info="<?= e($lbData) ?>">
+                                <img src="<?= e($fullUrl) ?>" alt="<?= e($caption) ?>" loading="lazy"
+                                     class="w-100 h-100 archiv-thumb" style="object-fit:cover"
+                                     onerror="this.closest('.col').style.display='none'">
+                            </a>
+                        </div>
+                    <?php endforeach ?>
+                </div>
+            <?php endif ?>
+            <?php if (!empty($aktive['dokumente'])) : ?>
+                <h6 class="text-muted mb-2 mt-3"><i class="fas fa-file-alt me-1"></i><?= I18N::translate('Dokumente') ?></h6>
+                <?php
+                $formatIcons  = ['pdf'=>null,'doc'=>'fa-file','docx'=>'fa-file','txt'=>'fa-file-alt'];
+                $formatFarben = ['pdf'=>'#CC0000','doc'=>'#2B579A','docx'=>'#2B579A'];
+                ?>
+                <div class="list-group">
+                    <?php foreach ($aktive['dokumente'] as $dok) : ?>
+                        <?php
+                        $isPdf  = $dok['format'] === 'pdf';
+                        $farbe  = $formatFarben[$dok['format']] ?? '#6c757d';
+                        $titel  = $dok['titel'] !== '' ? $dok['titel'] : $dok['datei'];
+                        $href   = $dok['m_id'] !== null
+                            ? route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaPage::class, ['tree' => $tree->name(), 'xref' => $dok['m_id']])
+                            : route('sammlungen.media-datei', ['tree' => $treeName, 'pfad' => $dok['pfad']]);
+                        ?>
+                        <a href="<?= e($href) ?>" target="<?= $dok['m_id'] === null ? '_blank' : '_self' ?>"
+                           class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-2">
+                            <?php if ($isPdf) : ?>
+                                <span class="flex-shrink-0 d-inline-flex align-items-center justify-content-center fw-bold text-white rounded"
+                                      style="width:2rem;height:2rem;background:#CC0000;font-size:.6rem">PDF</span>
+                            <?php else : ?>
+                                <i class="fas fa-file fs-5 flex-shrink-0" style="width:2rem;text-align:center;color:<?= e($farbe) ?>"></i>
+                            <?php endif ?>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="fw-semibold text-truncate"><?= e($titel) ?></div>
+                                <?php if ($dok['titel'] !== '' && $dok['titel'] !== $dok['datei']) : ?>
+                                    <small class="text-muted"><?= e($dok['datei']) ?></small>
+                                <?php endif ?>
+                            </div>
+                        </a>
+                    <?php endforeach ?>
+                </div>
+            <?php endif ?>
+            <p class="text-muted small mt-3">
+                <?= I18N::plural('%s Datei', '%s Dateien', $aktive['anzahl'], I18N::number($aktive['anzahl'])) ?>
+                · <?= I18N::translate('Seite %s von %s', $aktive['seite'], $aktive['seiten_gesamt']) ?>
+            </p>
+
+        <?php elseif ($aktive['istBild']) : ?>
+            <!-- Fotogalerie – Masonry-Layout, natürliche Seitenverhältnisse -->
+            <div class="archiv-masonry" id="archiv-galerie">
+                <?php foreach ($aktive['bilder'] as $idx => $bild) : ?>
+                    <?php
+                    // MediaDateiServe für alle Bilder – MediaFileThumbnail braucht fact_id
+                    $fullUrl  = route('sammlungen.media-datei', ['tree' => $treeName, 'pfad' => $bild['pfad']]);
+                    $thumbUrl = $fullUrl;
+                    $mediaUrl = $bild['m_id'] !== null
+                        ? route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaPage::class, [
+                            'tree' => $tree->name(), 'xref' => $bild['m_id'],
+                          ])
+                        : '';
+                    $caption  = $bild['exif']['beschreibung'] !== ''
+                        ? $bild['exif']['beschreibung']
+                        : ($bild['titel'] !== '' ? $bild['titel'] : $bild['datei']);
+                    $datum    = $bild['exif']['datum'];
+                    $personen = $bild['personen'];
+                    $wtEditUrl = $mediaUrl;
+                    $lbData = json_encode([
+                        'datum'             => $datum,
+                        'datum_iso'         => $bild['exif']['datum_iso'],
+                        'exif_beschreibung' => $bild['exif']['beschreibung'],
+                        'personen'          => $personen,
+                        'keywords'          => $bild['exif']['keywords'] ?? [],
+                        'media'             => $mediaUrl,
+                        'wt_titel'          => $bild['wt']['titel'] ?? '',
+                        'wt_notiz'          => $bild['wt']['notiz'] ?? '',
+                        'wt_personen'       => $bild['wt']['personen'] ?? [],
+                        'wt_edit'           => $wtEditUrl,
+                        'in_sammlungen'     => $bild['in_sammlungen'] ?? [],
+                        'breite'            => $bild['exif']['breite'],
+                        'hoehe'             => $bild['exif']['hoehe'],
+                        'groesse_kb'        => $bild['exif']['groesse_kb'],
+                        'format'            => strtoupper($bild['format']),
+                        'thumb'             => $thumbUrl,
+                    ], JSON_UNESCAPED_UNICODE);
+                    ?>
+                    <div class="archiv-masonry-item">
+                        <a href="#"
+                           class="archiv-gallery-item d-block text-decoration-none position-relative"
+                           data-idx="<?= $idx ?>"
+                           data-full="<?= e($fullUrl) ?>"
+                           data-title="<?= e($caption) ?>"
+                           data-info="<?= e($lbData) ?>">
+                            <img src="<?= e($thumbUrl) ?>"
+                                 alt="<?= e($caption) ?>"
+                                 loading="lazy"
+                                 class="archiv-masonry-img"
+                                 onerror="this.closest('.archiv-masonry-item').style.display='none'">
+                            <?php if ($datum !== '' || $personen !== [] || $bild['exif']['beschreibung'] !== '') : ?>
+                                <div class="archiv-hover-overlay">
+                                    <?php if ($bild['exif']['beschreibung'] !== '') : ?>
+                                        <div class="archiv-hover-title"><?= e(mb_strimwidth($bild['exif']['beschreibung'], 0, 80, '…')) ?></div>
+                                    <?php endif ?>
+                                    <div class="archiv-hover-meta">
+                                        <?= $datum !== '' ? '📅 ' . e($datum) : '' ?>
+                                        <?= $personen !== [] ? ' · 👤 ' . e(implode(', ', array_slice($personen, 0, 2))) : '' ?>
+                                    </div>
+                                </div>
+                            <?php endif ?>
+                        </a>
+                    </div>
+                <?php endforeach ?>
+            </div>
+
+            <?php
+            $seiteUrl = fn (int $s): string => route('sammlungen.sammlungen', [
+                'tree'      => $treeName,
+                'kategorie' => $aktive['sammlung']->slug,
+                'seite'     => $s,
+            ]);
+            ?>
+            <p class="text-muted small mt-3 mb-2">
+                <?= I18N::plural('%s Foto', '%s Fotos', $aktive['anzahl'], I18N::number($aktive['anzahl'])) ?>
+                · <?= I18N::translate('Seite %s von %s', $aktive['seite'], $aktive['seiten_gesamt']) ?>
+                · <?= I18N::translate('Klicken zum Vergrößern') ?>
+            </p>
+            <?php if ($aktive['seiten_gesamt'] > 1) : ?>
+            <nav class="d-flex justify-content-center mt-2 mb-4" aria-label="Seitennavigation">
+                <ul class="pagination">
+                    <li class="page-item <?= $aktive['seite'] <= 1 ? 'disabled' : '' ?>">
+                        <a class="page-link px-3" href="<?= e($seiteUrl($aktive['seite'] - 1)) ?>">‹</a>
+                    </li>
+                    <?php
+                    $von = max(1, $aktive['seite'] - 2);
+                    $bis = min($aktive['seiten_gesamt'], $aktive['seite'] + 2);
+                    if ($von > 1) : ?>
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    <?php endif;
+                    for ($p = $von; $p <= $bis; $p++) : ?>
+                        <li class="page-item <?= $p === $aktive['seite'] ? 'active' : '' ?>">
+                            <a class="page-link" href="<?= e($seiteUrl($p)) ?>"><?= $p ?></a>
+                        </li>
+                    <?php endfor;
+                    if ($bis < $aktive['seiten_gesamt']) : ?>
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    <?php endif ?>
+                    <li class="page-item <?= $aktive['seite'] >= $aktive['seiten_gesamt'] ? 'disabled' : '' ?>">
+                        <a class="page-link px-3" href="<?= e($seiteUrl($aktive['seite'] + 1)) ?>">›</a>
+                    </li>
+                </ul>
+            </nav>
+            <?php endif ?>
+
+        <?php else : ?>
+            <!-- Dokumentenliste: alle Dateien aus Dateisystem -->
+            <?php
+            $formatIcons = [
+                'pdf'  => null,          // eigenes Badge, kein FA-Icon
+                'doc'  => 'fa-file', 'docx' => 'fa-file',
+                'xls'  => 'fa-file', 'xlsx' => 'fa-file',
+                'txt'  => 'fa-file-alt',
+                'mp3'  => 'fa-headphones', 'wav' => 'fa-headphones',
+                'mp4'  => 'fa-film',  'avi'  => 'fa-film',
+            ];
+            $formatFarben = [
+                'doc'  => '#2B579A', 'docx' => '#2B579A',
+                'xls'  => '#217346', 'xlsx' => '#217346',
+                'mp3'  => '#1DB954', 'wav'  => '#1DB954',
+                'mp4'  => '#c00000', 'avi'  => '#c00000',
+            ];
+            ?>
+            <div class="list-group">
+                <?php foreach ($aktive['alle'] as $medium) : ?>
+                    <?php
+                    $icon   = $formatIcons[$medium['format']] ?? 'fa-file';
+                    $farbe  = $formatFarben[$medium['format']] ?? '#6c757d';
+                    $titel  = $medium['titel'] !== '' ? $medium['titel'] : $medium['datei'];
+                    $isPdf  = $medium['format'] === 'pdf';
+                    $href   = $medium['m_id'] !== null
+                        ? route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaPage::class, ['tree' => $tree->name(), 'xref' => $medium['m_id']])
+                        : route('sammlungen.media-datei', ['tree' => $treeName, 'pfad' => $medium['pfad']]);
+                    ?>
+                    <a href="<?= e($href) ?>"
+                       target="<?= $medium['m_id'] === null ? '_blank' : '_self' ?>"
+                       class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-2">
+                        <?php if ($isPdf) : ?>
+                            <span class="flex-shrink-0 d-inline-flex align-items-center justify-content-center fw-bold text-white rounded"
+                                  style="width:2rem;height:2rem;background:#CC0000;font-size:0.6rem;letter-spacing:0.05em">PDF</span>
+                        <?php else : ?>
+                            <i class="fas <?= e($icon) ?> fs-5 flex-shrink-0"
+                               style="width:2rem;text-align:center;color:<?= e($farbe) ?>"></i>
+                        <?php endif ?>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="fw-semibold text-truncate"><?= e($titel) ?></div>
+                            <?php if ($medium['titel'] !== '' && $medium['titel'] !== $medium['datei']) : ?>
+                                <small class="text-muted"><?= e($medium['datei']) ?></small>
+                            <?php endif ?>
+                        </div>
+                        <?php if ($medium['m_id'] === null) : ?>
+                            <span class="badge bg-warning text-dark flex-shrink-0"
+                                  title="<?= I18N::translate('Noch nicht in webtrees importiert') ?>">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <?= I18N::translate('Neu') ?>
+                            </span>
+                        <?php endif ?>
+                    </a>
+                <?php endforeach ?>
+            </div>
+            <?php
+            $nichtImportiert = count(array_filter($aktive['alle'], fn ($d) => $d['m_id'] === null));
+            $seiteUrlDoc = fn (int $s): string => route('sammlungen.sammlungen', [
+                'tree'      => $treeName,
+                'kategorie' => $aktive['sammlung']->slug,
+                'seite'     => $s,
+            ]);
+            ?>
+            <p class="text-muted small mt-3 mb-2">
+                <?= I18N::plural('%s Datei', '%s Dateien', $aktive['anzahl'], I18N::number($aktive['anzahl'])) ?>
+                · <?= I18N::translate('Seite %s von %s', $aktive['seite'], $aktive['seiten_gesamt']) ?>
+                <?php if ($nichtImportiert > 0) : ?>
+                    · <span class="text-warning">
+                        <?= I18N::translate('%s noch nicht importiert', I18N::number($nichtImportiert)) ?>
+                    </span>
+                <?php endif ?>
+            </p>
+            <?php if ($aktive['seiten_gesamt'] > 1) : ?>
+            <nav class="d-flex justify-content-center mt-2 mb-4">
+                <ul class="pagination">
+                    <li class="page-item <?= $aktive['seite'] <= 1 ? 'disabled' : '' ?>">
+                        <a class="page-link px-3" href="<?= e($seiteUrlDoc($aktive['seite'] - 1)) ?>">‹</a>
+                    </li>
+                    <?php
+                    $von = max(1, $aktive['seite'] - 2);
+                    $bis = min($aktive['seiten_gesamt'], $aktive['seite'] + 2);
+                    if ($von > 1) : ?>
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    <?php endif;
+                    for ($p = $von; $p <= $bis; $p++) : ?>
+                        <li class="page-item <?= $p === $aktive['seite'] ? 'active' : '' ?>">
+                            <a class="page-link" href="<?= e($seiteUrlDoc($p)) ?>"><?= $p ?></a>
+                        </li>
+                    <?php endfor;
+                    if ($bis < $aktive['seiten_gesamt']) : ?>
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    <?php endif ?>
+                    <li class="page-item <?= $aktive['seite'] >= $aktive['seiten_gesamt'] ? 'disabled' : '' ?>">
+                        <a class="page-link px-3" href="<?= e($seiteUrlDoc($aktive['seite'] + 1)) ?>">›</a>
+                    </li>
+                </ul>
+            </nav>
+            <?php endif ?>
+        <?php endif ?>
+        <?php if ($aktive['istBild']): ?>
+            <!-- Lightbox Modal mit Seitenleiste -->
+            <div class="modal fade" id="archiv-lightbox" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered p-0 archiv-lb-dialog">
+                    <div class="modal-content bg-black border-0" style="max-height:92vh">
+                        <div class="modal-body p-0 d-flex" style="min-height:0;overflow:hidden">
+
+                            <!-- FOTO-BEREICH -->
+                            <div class="d-flex flex-column flex-grow-1 position-relative" style="min-width:0">
+                                <!-- Schließen -->
+                                <!-- Obere Leiste: Caption + Buttons + Schließen -->
+                                <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom border-secondary flex-shrink-0">
+                                    <div class="flex-grow-1 min-w-0">
+                                        <div id="archiv-lb-caption" class="text-white small fw-semibold text-truncate"></div>
+                                        <div id="archiv-lb-meta" class="text-white-50 small"></div>
+                                    </div>
+                                    <div class="d-flex gap-2 flex-shrink-0 align-items-center">
+                                        <a id="archiv-lb-fullsize" href="#" target="_blank"
+                                           class="btn btn-sm btn-outline-light"
+                                           title="<?= I18N::translate('Vollbild in neuem Tab') ?>">↗</a>
+                                        <?php if ($manuelleGalerien !== [] && $istAdmin) : ?>
+                                            <div class="dropdown" id="archiv-lb-sammlung-dd">
+                                                <button class="btn btn-sm btn-outline-success dropdown-toggle d-none"
+                                                        id="archiv-lb-sammlung-btn"
+                                                        data-bs-toggle="dropdown" aria-expanded="false"
+                                                        title="<?= I18N::translate('Zu Sammlung hinzufügen') ?>">＋</button>
+                                                <ul class="dropdown-menu dropdown-menu-dark" id="archiv-lb-sammlung-list">
+                                                    <?php foreach ($manuelleGalerien as $mg) : ?>
+                                                        <li>
+                                                            <button class="dropdown-item archiv-sammlung-toggle"
+                                                                    data-cid="<?= $mg->id ?>"
+                                                                    data-name="<?= e($mg->name) ?>">
+                                                                <span class="archiv-sammlung-check me-2">○</span><?= e($mg->name) ?>
+                                                            </button>
+                                                        </li>
+                                                    <?php endforeach ?>
+                                                </ul>
+                                            </div>
+                                        <?php endif ?>
+                                        <a id="archiv-lb-link" href="#"
+                                           class="btn btn-sm btn-outline-light d-none">
+                                            <?= I18N::translate('In webtrees öffnen') ?>
+                                        </a>
+                                        <?php if ($istAdmin) : ?>
+                                            <button id="archiv-lb-edit-btn" class="btn btn-sm btn-outline-warning"
+                                                    title="<?= I18N::translate('EXIF/XMP bearbeiten') ?>">✏️</button>
+                                        <?php endif ?>
+                                        <button type="button" class="btn-close btn-close-white ms-1"
+                                                data-bs-dismiss="modal"></button>
+                                    </div>
+                                </div>
+                                <!-- Bild -->
+                                <div class="flex-grow-1 d-flex align-items-center justify-content-center position-relative" style="min-height:0;overflow:hidden">
+                                    <img id="archiv-lb-img" src="" alt=""
+                                         style="max-height:78vh;max-width:100%;object-fit:contain">
+                                    <button id="archiv-lb-prev"
+                                            class="btn btn-dark bg-opacity-50 position-absolute start-0 top-50 translate-middle-y ms-2 fs-3 px-3">&#8249;</button>
+                                    <button id="archiv-lb-next"
+                                            class="btn btn-dark bg-opacity-50 position-absolute end-0 top-50 translate-middle-y me-2 fs-3 px-3">&#8250;</button>
+                                </div>
+                                <!-- Thumbnail-Streifen -->
+                                <div id="archiv-lb-thumbstrip"
+                                     class="flex-shrink-0 d-flex gap-1 overflow-x-auto px-2 py-1"
+                                     style="background:#0a0a0a;scroll-behavior:smooth"></div>
+                            </div>
+
+                            <!-- SEITENLEISTE (versteckt) -->
+                            <div id="archiv-lb-sidebar"
+                                 class="d-none flex-shrink-0 d-flex flex-column"
+                                 style="width:280px;background:#111;border-left:1px solid #333;overflow-y:auto">
+                                <div class="p-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="text-white fw-semibold small">EXIF / XMP</span>
+                                        <button id="archiv-edit-cancel" class="btn-close btn-close-white"
+                                                title="<?= I18N::translate('Schließen') ?>"></button>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label text-white-50 small mb-1"><?= I18N::translate('Beschreibung') ?></label>
+                                        <textarea id="archiv-edit-beschreibung" rows="4"
+                                                  class="form-control form-control-sm bg-dark text-white border-secondary"
+                                                  placeholder="<?= I18N::translate('Wer, Was, Wann, Wo…') ?>"></textarea>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label text-white-50 small mb-1"><?= I18N::translate('Datum') ?></label>
+                                        <input id="archiv-edit-datum" type="text"
+                                               class="form-control form-control-sm bg-dark text-white border-secondary"
+                                               placeholder="JJJJ-MM-TT  oder  JJJJ">
+                                        <div class="form-text text-white-50 small">z.B. 1923-06-15 oder 1923</div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label text-white-50 small mb-1"><?= I18N::translate('Personen') ?></label>
+                                        <input id="archiv-edit-personen" type="text"
+                                               class="form-control form-control-sm bg-dark text-white border-secondary"
+                                               placeholder="Hans Maier, Bertha Müller">
+                                        <div class="form-text text-white-50 small"><?= I18N::translate('Komma-getrennt') ?></div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="form-label text-white-50 small mb-1"><?= I18N::translate('Stichwörter') ?></label>
+                                        <input id="archiv-edit-keywords" type="text"
+                                               class="form-control form-control-sm bg-dark text-white border-secondary"
+                                               placeholder="Hamburg, Hochzeit, 1920er">
+                                        <div class="form-text text-white-50 small"><?= I18N::translate('Komma-getrennt') ?></div>
+                                    </div>
+
+                                    <button id="archiv-edit-save" class="btn btn-success btn-sm w-100">
+                                        <?= I18N::translate('In Datei speichern') ?>
+                                    </button>
+                                    <div id="archiv-edit-status" class="small text-center mt-2"></div>
+
+                                    <input type="hidden" id="archiv-edit-csrf" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" id="archiv-edit-route"
+                                           value="<?= e(route('sammlungen.exif-schreiben', ['tree' => $treeName])) ?>">
+
+                                    <!-- Dateiinfo -->
+                                    <div id="archiv-datei-section" class="mt-4 d-none">
+                                        <div class="border-top border-secondary pt-3">
+                                            <div class="text-white-50 small fw-semibold mb-2 text-uppercase" style="font-size:.7rem;letter-spacing:.05em">
+                                                <?= I18N::translate('Datei') ?>
+                                            </div>
+                                            <div id="archiv-datei-name" class="text-white small mb-1 d-flex align-items-center gap-2">
+                                                <span class="text-truncate flex-grow-1" id="archiv-datei-name-text" style="font-size:.75rem"></span>
+                                                <?php if ($istAdmin) : ?>
+                                                <button id="archiv-datei-rename-btn" type="button"
+                                                        class="btn btn-sm btn-outline-warning py-0 px-1"
+                                                        style="font-size:.65rem"
+                                                        title="<?= I18N::translate('Datei umbenennen') ?>">✏️</button>
+                                                <?php endif ?>
+                                            </div>
+                                            <div id="archiv-datei-rename-form" class="d-none mb-2">
+                                                <input type="text" id="archiv-datei-rename-input"
+                                                       class="form-control form-control-sm bg-dark text-white border-secondary">
+                                                <div class="d-flex gap-1 mt-1">
+                                                    <button id="archiv-datei-rename-save" type="button" class="btn btn-sm btn-success py-0 px-2" style="font-size:.7rem">✓ Speichern</button>
+                                                    <button id="archiv-datei-rename-cancel" type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.7rem">Abbrechen</button>
+                                                </div>
+                                                <div id="archiv-datei-rename-status" class="small mt-1"></div>
+                                            </div>
+                                            <div id="archiv-datei-info" class="text-white-50 small"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Abgleich EXIF ↔ webtrees -->
+                                    <div id="archiv-abgleich-section" class="mt-4 d-none">
+                                        <div class="border-top border-warning pt-3">
+                                            <div class="text-warning small fw-semibold mb-2 text-uppercase" style="font-size:.7rem;letter-spacing:.05em">
+                                                ⚖️ <?= I18N::translate('Abgleich EXIF ↔ webtrees') ?>
+                                            </div>
+                                            <div id="archiv-abgleich-list" class="small"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- webtrees-Abschnitt -->
+                                    <div id="archiv-wt-section" class="mt-4 d-none">
+                                        <div class="border-top border-secondary pt-3">
+                                            <div class="text-white-50 small fw-semibold mb-2 text-uppercase" style="font-size:.7rem;letter-spacing:.05em">
+                                                webtrees
+                                            </div>
+                                            <div id="archiv-wt-personen" class="mb-2"></div>
+                                            <div id="archiv-wt-notiz" class="text-white-50 small mb-2" style="white-space:pre-line"></div>
+                                            <a id="archiv-wt-link" href="#"
+                                               class="btn btn-sm btn-outline-secondary w-100 d-none">
+                                                <?= I18N::translate('In webtrees öffnen') ?>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+            // Konfiguration für sammlung-galerie.js
+            window.archivConfig = {
+                toggleRoute:           <?= json_encode($toggleRoute) ?>,
+                renameRoute:           <?= json_encode(route('sammlungen.datei-umbenennen', ['tree' => $tree->name()])) ?>,
+                csrf:                  <?= json_encode(csrf_token()) ?>,
+                individualUrlTemplate: <?= json_encode(route(\Fisharebest\Webtrees\Http\RequestHandlers\IndividualPage::class, ['tree' => $tree->name(), 'xref' => '_XREF_'])) ?>
+            };
+            </script>
+            <script src="<?= e(route('sammlungen.asset', ['datei' => 'sammlung-galerie.js'])) ?>"></script>
+
+        <?php endif ?>

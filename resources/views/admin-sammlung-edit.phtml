@@ -1,0 +1,349 @@
+<?php
+
+/**
+ * View: sammlungen::admin-sammlung-edit
+ * Route: GET /archiv/admin/sammlungen/edit[?id=N]
+ *
+ * @var string                              $title
+ * @var \Fisharebest\Webtrees\Tree          $tree
+ * @var object|null                         $sammlung   null = neue Sammlung
+ * @var array<string, string>               $iconAuswahl
+ * @var array<string, string>               $medienTypen
+ */
+
+use Fisharebest\Webtrees\I18N;
+
+$isNeu    = $sammlung === null;
+$actionUrl = $isNeu
+    ? route('sammlungen.admin.sammlungen.edit', ['tree' => $tree->name()])
+    : route('sammlungen.admin.sammlungen.edit', ['tree' => $tree->name(), 'id' => $sammlung->id]);
+
+// Formularwerte (neu = Defaults, bearbeiten = bestehende Werte)
+$fSlug         = $isNeu ? '' : $sammlung->slug;
+$fName         = $isNeu ? '' : $sammlung->name;
+$fBeschreibung = $isNeu ? '' : ($sammlung->beschreibung ?? '');
+$fFarbe        = $isNeu ? '#6c757d' : $sammlung->farbe;
+$fIcon         = $isNeu ? 'folder'  : $sammlung->icon;
+$fReihenfolge  = $isNeu ? 0         : $sammlung->reihenfolge;
+$fAktiv        = $isNeu ? true      : $sammlung->aktiv;
+$fOrdner       = $isNeu ? '' : ($sammlung->ordner ?? '');
+$fAnsicht      = $isNeu ? 'foto' : ($sammlung->ansicht ?? 'foto');
+
+?>
+
+<div class="container-lg mt-4 mb-5">
+
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="<?= e(route('sammlungen.admin.config')) ?>">
+                    <?= I18N::translate('Einstellungen') ?>
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="<?= e(route('sammlungen.admin.sammlungen', ['tree' => $tree->name()])) ?>">
+                    <?= I18N::translate('Sammlungen') ?>
+                </a>
+            </li>
+            <li class="breadcrumb-item active">
+                <?= $isNeu ? I18N::translate('Neu') : e($sammlung->name) ?>
+            </li>
+        </ol>
+    </nav>
+
+    <h1><?= e($title) ?></h1>
+
+    <form method="post" action="<?= e($actionUrl) ?>" novalidate>
+        <?= csrf_field() ?>
+
+        <div class="row g-4">
+
+            <!-- Linke Spalte: Pflichtfelder -->
+            <div class="col-lg-8">
+                <div class="card shadow-sm">
+                    <div class="card-header fw-semibold">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <?= I18N::translate('Grundeinstellungen') ?>
+                    </div>
+                    <div class="card-body">
+
+                        <!-- Name -->
+                        <div class="mb-3">
+                            <label for="name" class="form-label fw-semibold">
+                                <?= I18N::translate('Name') ?>
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="text"
+                                   id="name"
+                                   name="name"
+                                   class="form-control"
+                                   value="<?= e($fName) ?>"
+                                   required
+                                   maxlength="255"
+                                   autofocus>
+                            <div class="form-text">
+                                <?= I18N::translate('Angezeigter Name der Sammlung.') ?>
+                            </div>
+                        </div>
+
+                        <!-- Slug -->
+                        <div class="mb-3">
+                            <label for="slug" class="form-label fw-semibold">
+                                <?= I18N::translate('Interne Kennung') ?>
+                            </label>
+                            <input type="text"
+                                   id="slug"
+                                   name="slug"
+                                   class="form-control font-monospace"
+                                   value="<?= e($fSlug) ?>"
+                                   maxlength="80"
+                                   pattern="[a-z0-9_-]+"
+                                   <?= !$isNeu ? 'readonly' : '' ?>>
+                            <div class="form-text">
+                                <?= I18N::translate(
+                                    'Kleinbuchstaben, Ziffern, - und _. '
+                                    . 'Wird automatisch aus dem Namen erzeugt. '
+                                    . 'Nur Buchstaben, Ziffern, Bindestrich. Nicht änderbar.'
+                                ) ?>
+                            </div>
+                        </div>
+
+                        <!-- Beschreibung -->
+                        <div class="mb-0">
+                            <label for="beschreibung" class="form-label fw-semibold">
+                                <?= I18N::translate('Beschreibung') ?>
+                            </label>
+                            <textarea id="beschreibung"
+                                      name="beschreibung"
+                                      class="form-control"
+                                      rows="3"
+                                      maxlength="2000"><?= e($fBeschreibung) ?></textarea>
+                        </div>
+
+                        <!-- Anzeigetyp -->
+                        <div class="mb-3 mt-3">
+                            <label class="form-label fw-semibold"><?= I18N::translate('Anzeigetyp') ?></label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="ansicht"
+                                           id="ansicht-foto" value="foto" <?= $fAnsicht === 'foto' ? 'checked' : '' ?>>
+                                    <label class="form-check-label" for="ansicht-foto">
+                                        📷 <?= I18N::translate('Fotogalerie') ?>
+                                        <small class="text-muted d-block"><?= I18N::translate('Masonry, Lightbox, EXIF-Editor') ?></small>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="ansicht"
+                                           id="ansicht-raster" value="raster" <?= $fAnsicht === 'raster' ? 'checked' : '' ?>>
+                                    <label class="form-check-label" for="ansicht-raster">
+                                        🔲 <?= I18N::translate('Foto-Raster') ?>
+                                        <small class="text-muted d-block"><?= I18N::translate('Gleichförmiges Grid, sachlich') ?></small>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="ansicht"
+                                           id="ansicht-gemischt" value="gemischt" <?= $fAnsicht === 'gemischt' ? 'checked' : '' ?>>
+                                    <label class="form-check-label" for="ansicht-gemischt">
+                                        🔀 <?= I18N::translate('Gemischt') ?>
+                                        <small class="text-muted d-block"><?= I18N::translate('Fotos als Kacheln, Dokumente als Liste') ?></small>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="ansicht"
+                                           id="ansicht-dokument" value="dokument" <?= $fAnsicht === 'dokument' ? 'checked' : '' ?>>
+                                    <label class="form-check-label" for="ansicht-dokument">
+                                        📄 <?= I18N::translate('Dokumentenliste') ?>
+                                        <small class="text-muted d-block"><?= I18N::translate('Liste, auch für JPG-Scans') ?></small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ordner-Verknüpfung -->
+                        <div class="mb-0 mt-3">
+                            <label for="ordner" class="form-label fw-semibold">
+                                <?= I18N::translate('Medienordner (automatisch befüllt)') ?>
+                            </label>
+                            <input type="text"
+                                   id="ordner"
+                                   name="ordner"
+                                   class="form-control font-monospace"
+                                   list="ordner-vorschlaege"
+                                   value="<?= e($fOrdner) ?>"
+                                   placeholder="<?= I18N::translate('z.B. Familienfotos') ?>"
+                                   autocomplete="off">
+                            <datalist id="ordner-vorschlaege">
+                                <?php foreach ($verfuegbareOrdner as $o) : ?>
+                                    <option value="<?= e($o) ?>">
+                                <?php endforeach ?>
+                            </datalist>
+                            <div class="form-text">
+                                <?= I18N::translate('Ordnerpfad relativ zu data/media/ – Unterordner werden automatisch eingeschlossen. Leer lassen für manuelle Pflege.') ?>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rechte Spalte: Darstellung -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm">
+                    <div class="card-header fw-semibold">
+                        <i class="fas fa-paint-brush me-2"></i>
+                        <?= I18N::translate('Darstellung') ?>
+                    </div>
+                    <div class="card-body">
+
+                        <!-- Vorschau -->
+                        <div class="mb-3 text-center">
+                            <div id="icon-vorschau"
+                                 class="d-inline-flex align-items-center justify-content-center rounded-circle mb-2"
+                                 style="width:64px;height:64px;background:<?= e($fFarbe) ?>20;
+                                        border:2px solid <?= e($fFarbe) ?>">
+                                <i id="icon-vorschau-i"
+                                   class="fas fa-<?= e($fIcon) ?> fs-3"
+                                   style="color:<?= e($fFarbe) ?>"></i>
+                            </div>
+                            <div class="small text-muted" id="icon-vorschau-name">
+                                <?= e($fName !== '' ? $fName : I18N::translate('Vorschau')) ?>
+                            </div>
+                        </div>
+
+                        <!-- Farbe -->
+                        <div class="mb-3">
+                            <label for="farbe" class="form-label fw-semibold">
+                                <?= I18N::translate('Farbe') ?>
+                            </label>
+                            <div class="input-group">
+                                <input type="color"
+                                       id="farbe"
+                                       name="farbe"
+                                       class="form-control form-control-color"
+                                       value="<?= e($fFarbe) ?>"
+                                       style="width:3rem">
+                                <input type="text"
+                                       id="farbe-text"
+                                       class="form-control font-monospace"
+                                       value="<?= e($fFarbe) ?>"
+                                       pattern="#[0-9a-fA-F]{6}"
+                                       maxlength="7">
+                            </div>
+                        </div>
+
+                        <!-- Icon -->
+                        <div class="mb-3">
+                            <label for="icon" class="form-label fw-semibold">
+                                <?= I18N::translate('Icon') ?>
+                            </label>
+                            <select id="icon" name="icon" class="form-select">
+                                <?php foreach ($iconAuswahl as $slug => $label) : ?>
+                                    <option value="<?= e($slug) ?>"
+                                            <?= $fIcon === $slug ? 'selected' : '' ?>>
+                                        <?= e($label) ?>
+                                    </option>
+                                <?php endforeach ?>
+                            </select>
+                        </div>
+
+                        <!-- Reihenfolge + Aktiv -->
+                        <div class="mb-3">
+                            <label for="reihenfolge" class="form-label fw-semibold">
+                                <?= I18N::translate('Reihenfolge') ?>
+                            </label>
+                            <input type="number"
+                                   id="reihenfolge"
+                                   name="reihenfolge"
+                                   class="form-control"
+                                   value="<?= $fReihenfolge ?>"
+                                   min="0"
+                                   max="9999">
+                        </div>
+
+                        <div class="form-check form-switch">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="aktiv"
+                                   name="aktiv"
+                                   <?= $fAktiv ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="aktiv">
+                                <?= I18N::translate('Sichtbar (aktiv)') ?>
+                            </label>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /.row -->
+
+        <!-- Aktionsleiste -->
+        <div class="d-flex justify-content-between mt-4 flex-wrap gap-2">
+            <a href="<?= e(route('sammlungen.admin.sammlungen', ['tree' => $tree->name()])) ?>"
+               class="btn btn-outline-secondary">
+                <i class="fas fa-times me-1"></i>
+                <?= I18N::translate('Abbrechen') ?>
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>
+                <?= $isNeu
+                    ? I18N::translate('Sammlung anlegen')
+                    : I18N::translate('Änderungen speichern') ?>
+            </button>
+        </div>
+
+    </form>
+
+</div>
+
+<script>
+(function () {
+    const nameInput  = document.getElementById('name');
+    const slugInput  = document.getElementById('slug');
+    const farbeInput = document.getElementById('farbe');
+    const farbeText  = document.getElementById('farbe-text');
+    const iconSelect = document.getElementById('icon');
+    const vorschauI  = document.getElementById('icon-vorschau-i');
+    const vorschauEl = document.getElementById('icon-vorschau');
+    const vorschauNm = document.getElementById('icon-vorschau-name');
+    const isNew      = <?= $isNeu ? 'true' : 'false' ?>;
+
+    // Slug aus Name ableiten (nur beim Neuanlegen, solange Slug-Feld leer)
+    if (isNew && nameInput && slugInput) {
+        nameInput.addEventListener('input', function () {
+            if (slugInput.value === '') {
+                slugInput.value = nameInput.value
+                    .toLowerCase()
+                    .replace(/[äöü]/g, c => ({ä:'ae',ö:'oe',ü:'ue'})[c] || c)
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-+|-+$/g, '')
+                    .substring(0, 80);
+            }
+            vorschauNm.textContent = nameInput.value || '<?= e(I18N::translate('Vorschau')) ?>';
+        });
+    }
+
+    // Farbsynchronisation zwischen Color-Picker und Text-Input
+    function syncFarbe(farbe) {
+        farbeInput.value = farbe;
+        farbeText.value  = farbe;
+        vorschauEl.style.background = farbe + '20';
+        vorschauEl.style.borderColor = farbe;
+        vorschauI.style.color = farbe;
+    }
+
+    farbeInput.addEventListener('input',  () => syncFarbe(farbeInput.value));
+    farbeText.addEventListener('change',  () => {
+        if (/^#[0-9a-f]{6}$/i.test(farbeText.value)) {
+            syncFarbe(farbeText.value);
+        }
+    });
+
+    // Icon-Vorschau
+    iconSelect.addEventListener('change', function () {
+        vorschauI.className = 'fas fa-' + this.value + ' fs-3';
+        vorschauI.style.color = farbeInput.value;
+    });
+})();
+</script>

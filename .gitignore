@@ -1,0 +1,12 @@
+/vendor/
+/composer.phar
+/.phpunit.cache/
+/build/
+*.bak
+*.bak2
+*.old
+*.tmp
+*.swp
+.DS_Store
+.idea/
+.vscode/

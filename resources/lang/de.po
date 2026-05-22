@@ -1,0 +1,119 @@
+# Familienarchiv – Deutsche Übersetzungen
+# Copyright (C) 2025
+# This file is distributed under the same license as the Familienarchiv module.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: familienarchiv 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-01 00:00+0000\n"
+"PO-Revision-Date: 2025-01-01 00:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: German\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Familienarchiv"
+msgstr "Familienarchiv"
+
+msgid "Stellt Archivseiten für Orte, Quellen und Sammlungen bereit."
+msgstr "Stellt Archivseiten für Orte, Quellen und Sammlungen bereit."
+
+msgid "Archiv"
+msgstr "Archiv"
+
+msgid "Orte"
+msgstr "Orte"
+
+msgid "Quellen"
+msgstr "Quellen"
+
+msgid "Sammlungen"
+msgstr "Sammlungen"
+
+msgid "Zur Ortsliste"
+msgstr "Zur Ortsliste"
+
+msgid "Zur Quellenliste"
+msgstr "Zur Quellenliste"
+
+msgid "Zu den Sammlungen"
+msgstr "Zu den Sammlungen"
+
+msgid "Willkommen im Familienarchiv. Hier finden Sie strukturierte Übersichten zu Orten, Quellen und Sammlungen."
+msgstr "Willkommen im Familienarchiv. Hier finden Sie strukturierte Übersichten zu Orten, Quellen und Sammlungen."
+
+msgid "Geografische Orte aus dem Stammbaum mit Ereigniszuordnungen."
+msgstr "Geografische Orte aus dem Stammbaum mit Ereigniszuordnungen."
+
+msgid "Alle GEDCOM-Quellen (SOUR) mit Repositorien und Verweisen."
+msgstr "Alle GEDCOM-Quellen (SOUR) mit Repositorien und Verweisen."
+
+msgid "Thematisch gruppierte Dokumente, Medien und Quellen."
+msgstr "Thematisch gruppierte Dokumente, Medien und Quellen."
+
+msgid "Ortsname filtern …"
+msgstr "Ortsname filtern …"
+
+msgid "Filtern"
+msgstr "Filtern"
+
+msgid "Zurücksetzen"
+msgstr "Zurücksetzen"
+
+msgid "Ereignisse"
+msgstr "Ereignisse"
+
+msgid "Personen"
+msgstr "Personen"
+
+msgid "Quelle suchen …"
+msgstr "Quelle suchen …"
+
+msgid "Anwenden"
+msgstr "Anwenden"
+
+msgid "Titel"
+msgstr "Titel"
+
+msgid "Repositorium"
+msgstr "Repositorium"
+
+msgid "Datum"
+msgstr "Datum"
+
+msgid "Verknüpfte Datensätze"
+msgstr "Verknüpfte Datensätze"
+
+msgid "Alle"
+msgstr "Alle"
+
+msgid "Dokumente"
+msgstr "Dokumente"
+
+msgid "Fotos"
+msgstr "Fotos"
+
+msgid "Kirchenbücher"
+msgstr "Kirchenbücher"
+
+msgid "Karten"
+msgstr "Karten"
+
+msgid "%s Objekte"
+msgstr "%s Objekte"
+
+msgid "Version %s"
+msgstr "Version %s"
+
+msgid "Die Ortsliste wird in einem späteren Schritt implementiert."
+msgstr "Die Ortsliste wird in einem späteren Schritt implementiert."
+
+msgid "Die Quellenliste wird in einem späteren Schritt implementiert."
+msgstr "Die Quellenliste wird in einem späteren Schritt implementiert."
+
+msgid "Die Sammlungen werden in einem späteren Schritt implementiert."
+msgstr "Die Sammlungen werden in einem späteren Schritt implementiert."

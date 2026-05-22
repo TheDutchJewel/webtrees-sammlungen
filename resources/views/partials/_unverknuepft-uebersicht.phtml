@@ -1,0 +1,73 @@
+<?php
+
+/**
+ * Partial: Nicht-eingebunden – Typ-Übersicht
+ * Eingebunden aus sammlungen.phtml
+ *
+ * Erwartet aus Parent-Scope:
+ *   $aktive (Array mit typen und gesamt)
+ *   $unverknuepftUrl (Closure)
+ *   $treeName, $tree
+ */
+
+use Sammlungen\Dto\SammlungDto;
+use Fisharebest\Webtrees\I18N;
+
+?>
+
+    <!-- ============================================================
+         NICHT-EINGEBUNDEN: Typ-Übersicht
+    ============================================================ -->
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                  style="width:56px;height:56px;background:#dc354520;border:2px solid #dc3545">
+                <i class="fas fa-unlink fs-4" style="color:#dc3545"></i>
+            </span>
+            <div>
+                <h2 class="mb-0"><?= I18N::translate('Nicht eingebunden') ?></h2>
+                <span class="badge bg-danger">
+                    <?= I18N::plural('%s Objekt', '%s Objekte', $aktive['gesamt'], I18N::number($aktive['gesamt'])) ?>
+                </span>
+                <p class="text-muted small mb-0 mt-1">
+                    <?= I18N::translate('Medienobjekte ohne Verknüpfung zu Personen oder Familien') ?>
+                </p>
+            </div>
+            <a href="<?= e(route('sammlungen.sammlungen', ['tree' => $treeName])) ?>"
+               class="btn btn-sm btn-outline-secondary ms-auto">
+                <i class="fas fa-arrow-left me-1"></i><?= I18N::translate('Zurück') ?>
+            </a>
+        </div>
+
+        <?php if ($aktive['typen'] === []) : ?>
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                <?= I18N::translate('Alle Medienobjekte sind mit Personen oder Familien verknüpft.') ?>
+            </div>
+        <?php else : ?>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
+                <?php foreach ($aktive['typen'] as $typKey => $typAnzahl) : ?>
+                    <?php
+                    $typName = SammlungDto::TYPEN[strtolower($typKey)] ?? ucfirst($typKey ?: 'Ohne Typ');
+                    $typIcon = SammlungDto::ICONS[strtolower($typKey)] ?? 'fa-folder-open';
+                    ?>
+                    <div class="col">
+                        <a href="<?= e($unverknuepftUrl($typKey !== '' ? $typKey : '__ohne_typ__')) ?>" class="text-decoration-none">
+                            <div class="card h-100 shadow-sm border-danger border-opacity-25 archiv-card-hover">
+                                <div class="card-body d-flex gap-3 align-items-center">
+                                    <div class="flex-shrink-0 fs-2 text-danger">
+                                        <i class="fas <?= e($typIcon) ?>"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="card-title mb-1 text-dark"><?= e($typName) ?></h5>
+                                        <span class="badge bg-danger">
+                                            <?= I18N::plural('%s Objekt', '%s Objekte', $typAnzahl, I18N::number($typAnzahl)) ?>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                <?php endforeach ?>
+            </div>
+        <?php endif ?>
+

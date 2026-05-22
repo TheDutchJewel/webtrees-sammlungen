@@ -1,0 +1,144 @@
+<?php
+/**
+ * @var string        $title
+ * @var object        $sammlung
+ * @var list<object>  $quellen
+ * @var object|null   $quelleAktiv
+ * @var list<array>   $bilder
+ * @var list<string>  $inSammlung
+ * @var int           $seite
+ * @var int           $seiten
+ * @var int           $gesamt
+ * @var string        $toggleRoute
+ * @var string        $csrf
+ */
+use Fisharebest\Webtrees\I18N;
+$treeName = $tree->name();
+?>
+<div class="container-lg mt-4 mb-5">
+
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="<?= e(route('sammlungen.admin.sammlungen', ['tree' => $treeName])) ?>">
+                    <?= I18N::translate('Sammlungen verwalten') ?>
+                </a>
+            </li>
+            <li class="breadcrumb-item active"><?= e($sammlung->name) ?></li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0"><?= e($title) ?></h1>
+        <span class="badge bg-primary fs-6" id="anzahl-badge">
+            <?= count($inSammlung) ?> <?= I18N::translate('Fotos') ?>
+        </span>
+    </div>
+
+    <!-- Quellen-Tabs -->
+    <?php if ($quellen !== []) : ?>
+        <ul class="nav nav-tabs mb-3">
+            <?php foreach ($quellen as $q) : ?>
+                <li class="nav-item">
+                    <a class="nav-link <?= ($quelleAktiv && $q->id === $quelleAktiv->id) ? 'active' : '' ?>"
+                       href="<?= e(route('sammlungen.admin.sammlung-fotos', ['tree' => $treeName, 'id' => $sammlung->id, 'quelle' => $q->id])) ?>">
+                        <?= e($q->name) ?>
+                    </a>
+                </li>
+            <?php endforeach ?>
+        </ul>
+    <?php endif ?>
+
+    <?php if ($quelleAktiv === null || $bilder === []) : ?>
+        <div class="alert alert-info"><?= I18N::translate('Keine Fotos in dieser Quelle.') ?></div>
+    <?php else : ?>
+
+        <p class="text-muted small mb-3">
+            <?= I18N::translate('Klicken = hinzufügen/entfernen') ?>
+            · <?= I18N::translate('Seite %s von %s', $seite, $seiten) ?>
+            · <?= I18N::number($gesamt) ?> <?= I18N::translate('Fotos') ?>
+        </p>
+
+        <div class="row row-cols-3 row-cols-sm-4 row-cols-lg-6 g-2 mb-4">
+            <?php foreach ($bilder as $bild) : ?>
+                <?php
+                $istDrin = in_array($bild['pfad'], $inSammlung, true);
+                $src     = route('sammlungen.media-datei', ['tree' => $treeName, 'pfad' => $bild['pfad']]);
+                $titel   = $bild['titel'] !== '' ? $bild['titel'] : $bild['datei'];
+                ?>
+                <div class="col">
+                    <div class="foto-picker-item position-relative rounded overflow-hidden"
+                         data-pfad="<?= e($bild['pfad']) ?>"
+                         data-mid="<?= e($bild['m_id'] ?? '') ?>"
+                         style="cursor:pointer;aspect-ratio:1"
+                         onclick="toggleFoto(this)">
+                        <img src="<?= e($src) ?>"
+                             alt="<?= e($titel) ?>"
+                             loading="lazy"
+                             style="width:100%;height:100%;object-fit:cover;display:block"
+                             onerror="this.closest('.col').style.display='none'">
+                        <!-- Ausgewählt-Overlay -->
+                        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+                             style="background:rgba(13,110,253,.5);opacity:<?= $istDrin ? '1' : '0' ?>;transition:opacity .2s;pointer-events:none">
+                            <span style="font-size:2.5rem;color:white;text-shadow:0 0 8px rgba(0,0,0,.5)">✓</span>
+                        </div>
+                    </div>
+                    <div class="text-truncate text-muted mt-1" style="font-size:.7rem" title="<?= e($titel) ?>"><?= e($titel) ?></div>
+                </div>
+            <?php endforeach ?>
+        </div>
+
+        <!-- Paginierung -->
+        <?php if ($seiten > 1) : ?>
+            <nav class="d-flex justify-content-center mb-3">
+                <ul class="pagination">
+                    <li class="page-item <?= $seite <= 1 ? 'disabled' : '' ?>">
+                        <a class="page-link px-3" href="<?= e(route('sammlungen.admin.sammlung-fotos', ['tree' => $treeName, 'id' => $sammlung->id, 'quelle' => $quelleAktiv->id, 'seite' => $seite - 1])) ?>">‹</a>
+                    </li>
+                    <?php for ($p = max(1, $seite - 2); $p <= min($seiten, $seite + 2); $p++) : ?>
+                        <li class="page-item <?= $p === $seite ? 'active' : '' ?>">
+                            <a class="page-link" href="<?= e(route('sammlungen.admin.sammlung-fotos', ['tree' => $treeName, 'id' => $sammlung->id, 'quelle' => $quelleAktiv->id, 'seite' => $p])) ?>"><?= $p ?></a>
+                        </li>
+                    <?php endfor ?>
+                    <li class="page-item <?= $seite >= $seiten ? 'disabled' : '' ?>">
+                        <a class="page-link px-3" href="<?= e(route('sammlungen.admin.sammlung-fotos', ['tree' => $treeName, 'id' => $sammlung->id, 'quelle' => $quelleAktiv->id, 'seite' => $seite + 1])) ?>">›</a>
+                    </li>
+                </ul>
+            </nav>
+        <?php endif ?>
+
+    <?php endif ?>
+
+</div>
+
+<script>
+const TOGGLE_ROUTE = '<?= e($toggleRoute) ?>';
+const CSRF = '<?= e($csrf) ?>';
+const CID  = <?= $sammlung->id ?>;
+let anzahl = <?= count($inSammlung) ?>;
+
+async function toggleFoto(el) {
+    const pfad    = el.dataset.pfad;
+    const mid     = el.dataset.mid;
+    const overlay = el.querySelector('div[style*="rgba"]');
+    const drin    = parseFloat(overlay.style.opacity) > 0.5;
+
+    const body = new FormData();
+    body.append('_csrf',        CSRF);
+    body.append('collection_id', CID);
+    body.append('pfad',          pfad);
+    if (mid) body.append('m_id', mid);
+    body.append('aktion',        drin ? 'entfernen' : 'hinzufuegen');
+
+    try {
+        const res  = await fetch(TOGGLE_ROUTE, { method: 'POST', body });
+        const json = await res.json();
+        if (json.ok) {
+            overlay.style.opacity = json.istDrin ? '1' : '0';
+            anzahl += json.istDrin ? 1 : -1;
+            document.getElementById('anzahl-badge').textContent =
+                anzahl + ' <?= I18N::translate('Fotos') ?>';
+        }
+    } catch {}
+}
+</script>

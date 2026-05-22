@@ -1,0 +1,141 @@
+<?php
+
+/**
+ * Partial: Detailansicht manuelle oder automatische Sammlung
+ *
+ * Erwartet aus Parent-Scope:
+ *   $aktive (mit typ, sammlung, ggf. bilder/anzahl/seite/seiten_gesamt)
+ *   $tree, $treeName, $istAdmin
+ */
+
+use Fisharebest\Webtrees\I18N;
+
+?>
+
+    <!-- ============================================================
+         DETAILANSICHT einer Sammlung (manuell / automatisch)
+    ============================================================ -->
+        <?php
+        $typ      = $aktive['typ'];
+        $sammlung = $aktive['sammlung'];
+        $istManuell = ($typ === 'manuell');
+        $name     = $istManuell ? $sammlung->name     : $sammlung->name;
+        $icon     = $istManuell ? $sammlung->icon      : ltrim($sammlung->icon(), 'fa-');
+        $farbe    = $istManuell ? $sammlung->farbe     : '#0d6efd';
+        $anzahl   = $istManuell ? null                 : $sammlung->anzahl;
+        $beschr   = $istManuell ? ($sammlung->beschreibung ?? '') : '';
+        ?>
+
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                  style="width:56px;height:56px;background:<?= e($farbe) ?>20;border:2px solid <?= e($farbe) ?>">
+                <i class="fas fa-<?= e($icon) ?> fs-4" style="color:<?= e($farbe) ?>"></i>
+            </span>
+            <div>
+                <h2 class="mb-0"><?= e($name) ?></h2>
+                <?php if ($anzahl !== null) : ?>
+                    <span class="badge bg-secondary">
+                        <?= I18N::plural('%s Objekt', '%s Objekte', $anzahl, I18N::number($anzahl)) ?>
+                    </span>
+                <?php endif ?>
+                <?php if ($beschr !== '') : ?>
+                    <p class="text-muted small mb-0 mt-1"><?= nl2br(e($beschr)) ?></p>
+                <?php endif ?>
+            </div>
+            <a href="<?= e(route('sammlungen.sammlungen', ['tree' => $treeName])) ?>"
+               class="btn btn-sm btn-outline-secondary ms-auto">
+                <i class="fas fa-arrow-left me-1"></i><?= I18N::translate('Zurück') ?>
+            </a>
+        </div>
+
+        <?php if (!$istManuell && $sammlung->vorschauXrefs !== []) : ?>
+            <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xl-6 g-3">
+                <?php foreach ($sammlung->vorschauXrefs as $xref) : ?>
+                    <div class="col">
+                        <a href="<?= e(route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaPage::class, ['tree' => $tree->name(), 'xref' => $xref])) ?>"
+                           class="d-block ratio ratio-1x1 text-decoration-none">
+                            <img src="<?= e(route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaFileThumbnail::class, [
+                                'tree' => $tree->name(), 'xref' => $xref, 'w' => 240, 'h' => 240,
+                            ])) ?>"
+                                 alt="<?= e($xref) ?>"
+                                 loading="lazy"
+                                 class="object-fit-cover rounded shadow-sm w-100 h-100">
+                        </a>
+                    </div>
+                <?php endforeach ?>
+            </div>
+
+            <?php if ($sammlung->anzahl > count($sammlung->vorschauXrefs)) : ?>
+                <p class="text-muted small mt-3">
+                    <?= I18N::translate(
+                        'Vorschau: %s von %s Objekten.',
+                        count($sammlung->vorschauXrefs),
+                        I18N::number($sammlung->anzahl)
+                    ) ?>
+                </p>
+            <?php endif ?>
+
+        <?php elseif ($istManuell && !empty($aktive['bilder'])) : ?>
+            <!-- Manuelle Fotogalerie (pfad-basiert) – gleichförmiges Raster -->
+            <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xl-5 g-2" id="archiv-galerie">
+                <?php foreach ($aktive['bilder'] as $idx => $bild) : ?>
+                    <?php
+                    $fullUrl  = route('sammlungen.media-datei', ['tree' => $treeName, 'pfad' => $bild['pfad']]);
+                    $mediaUrl = $bild['m_id'] !== null ? route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaPage::class, ['tree' => $tree->name(), 'xref' => $bild['m_id']]) : '';
+                    $caption  = $bild['exif']['beschreibung'] !== '' ? $bild['exif']['beschreibung'] : $bild['datei'];
+                    $lbData   = json_encode(['datum'=>$bild['exif']['datum'],'datum_iso'=>$bild['exif']['datum_iso'],'exif_beschreibung'=>$bild['exif']['beschreibung'],'personen'=>$bild['personen'],'keywords'=>$bild['exif']['keywords']??[],'media'=>$mediaUrl,'wt_titel'=>'','wt_notiz'=>'','wt_personen'=>[],'wt_edit'=>$mediaUrl,'in_sammlungen'=>$bild['in_sammlungen']??[],'breite'=>$bild['exif']['breite'],'hoehe'=>$bild['exif']['hoehe'],'groesse_kb'=>$bild['exif']['groesse_kb'],'format'=>strtoupper($bild['format']),'thumb'=>$fullUrl], JSON_UNESCAPED_UNICODE);
+                    ?>
+                    <div class="col">
+                        <a href="#" class="archiv-gallery-item d-block ratio ratio-1x1 text-decoration-none position-relative overflow-hidden rounded archiv-thumb"
+                           data-idx="<?= $idx ?>" data-full="<?= e($fullUrl) ?>"
+                           data-title="<?= e($caption) ?>" data-info="<?= e($lbData) ?>">
+                            <div class="archiv-blur-bg" style="background-image:url('<?= e($fullUrl) ?>')"></div>
+                            <img src="<?= e($fullUrl) ?>" alt="<?= e($caption) ?>" loading="lazy"
+                                 class="archiv-photo-main"
+                                 onerror="this.closest('.col').style.display='none'">
+                        </a>
+                    </div>
+                <?php endforeach ?>
+            </div>
+            <?php
+            $seiteUrlManuell = fn (int $s): string => route('sammlungen.sammlungen', ['tree' => $treeName, 'kategorie' => $sammlung->slug, 'seite' => $s]);
+            ?>
+            <p class="text-muted small mt-3">
+                <?= I18N::plural('%s Foto', '%s Fotos', $aktive['anzahl'], I18N::number($aktive['anzahl'])) ?>
+                <?php if (($aktive['seiten_gesamt'] ?? 1) > 1) : ?>
+                    · <?= I18N::translate('Seite %s von %s', $aktive['seite'], $aktive['seiten_gesamt']) ?>
+                <?php endif ?>
+            </p>
+            <?php if (($aktive['seiten_gesamt'] ?? 1) > 1) : ?>
+                <nav class="d-flex justify-content-center mt-2">
+                    <ul class="pagination">
+                        <li class="page-item <?= ($aktive['seite'] ?? 1) <= 1 ? 'disabled' : '' ?>">
+                            <a class="page-link px-3" href="<?= e($seiteUrlManuell(($aktive['seite'] ?? 1) - 1)) ?>">‹</a>
+                        </li>
+                        <?php for ($p = max(1, ($aktive['seite'] ?? 1) - 2); $p <= min($aktive['seiten_gesamt'], ($aktive['seite'] ?? 1) + 2); $p++) : ?>
+                            <li class="page-item <?= $p === ($aktive['seite'] ?? 1) ? 'active' : '' ?>">
+                                <a class="page-link" href="<?= e($seiteUrlManuell($p)) ?>"><?= $p ?></a>
+                            </li>
+                        <?php endfor ?>
+                        <li class="page-item <?= ($aktive['seite'] ?? 1) >= $aktive['seiten_gesamt'] ? 'disabled' : '' ?>">
+                            <a class="page-link px-3" href="<?= e($seiteUrlManuell(($aktive['seite'] ?? 1) + 1)) ?>">›</a>
+                        </li>
+                    </ul>
+                </nav>
+            <?php endif ?>
+
+        <?php elseif ($istManuell) : ?>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <?= I18N::translate('Diese Sammlung ist noch leer.') ?>
+                <?php if ($istAdmin) : ?>
+                    <a href="<?= e(route('sammlungen.admin.sammlung-fotos', ['tree' => $tree->name(), 'id' => $sammlung->id])) ?>" class="alert-link">
+                        <?= I18N::translate('Fotos hinzufügen') ?>
+                    </a>
+                <?php endif ?>
+            </div>
+        <?php else : ?>
+            <div class="alert alert-info">
+                <?= I18N::translate('Keine Vorschaubilder (noch keine Bilddateien vom Typ jpg/png/gif/webp) in dieser Sammlung.') ?>
+            </div>
+        <?php endif ?>

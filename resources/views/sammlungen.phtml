@@ -1,0 +1,129 @@
+<?php
+
+/**
+ * View: sammlungen::sammlungen
+ * Route: GET /archiv/sammlungen[?kategorie=slug]
+ *        GET /archiv/sammlungen?kategorie=__unlinked__[&typ=photo]
+ *
+ * Dieser View ist nur Dispatcher – die einzelnen Ansichten liegen in partials/.
+ *
+ * Zeigt drei Arten von Sammlungen:
+ *   (a) Manuell gepflegt     → aus familienarchiv_collection (CollectionService)
+ *   (b) Automatisch          → aus media_file.source_media_type (SammlungenRepository)
+ *   (c) Nicht eingebunden    → Medien ohne OBJE-Verknüpfung zu Personen/Familien
+ *
+ * @var string                                      $title
+ * @var \Fisharebest\Webtrees\Tree|null             $tree
+ * @var string                                      $kategorie          aktiver Slug oder ''
+ * @var array{manuell:list<object>,
+ *            automatisch:list<\Sammlungen\Dto\SammlungDto>}  $sammlungen
+ * @var array{typ:string,sammlung:mixed}|null       $aktive             Details-Ansicht
+ * @var array<string,int>                           $unverknuepft_typen [typ => anzahl]
+ * @var bool                                        $istAdmin
+ */
+
+use Fisharebest\Webtrees\I18N;
+
+$manuell     = $sammlungen['manuell']     ?? [];
+$automatisch = $sammlungen['automatisch'] ?? [];
+
+// Hilfsfunktionen
+$treeName        = $tree?->name() ?? '';
+$sammlungUrl     = fn (string $slug): string =>
+    route('sammlungen.sammlungen', ['tree' => $treeName, 'kategorie' => $slug]);
+$unverknuepftUrl = fn (string $typ = ''): string => $typ !== ''
+    ? route('sammlungen.sammlungen', ['tree' => $treeName, 'kategorie' => '__unlinked__', 'typ' => $typ])
+    : route('sammlungen.sammlungen', ['tree' => $treeName, 'kategorie' => '__unlinked__']);
+
+$unverknuepftGesamt = array_sum($unverknuepft_typen ?? []);
+
+?>
+
+<div class="container-lg mt-4 mb-5" id="sammlungen-modul">
+
+    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+        <h1 class="mb-0"><?= e($title) ?></h1>
+        <?php if ($istAdmin) : ?>
+            <a href="<?= e(route('sammlungen.admin.sammlungen', ['tree' => $tree->name()])) ?>"
+               class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-wrench me-1"></i><?= I18N::translate('Sammlungen verwalten') ?>
+            </a>
+        <?php endif ?>
+    </div>
+
+    <?php if ($tree === null) : ?>
+        <div class="alert alert-warning">
+            <?= I18N::translate('Bitte wählen Sie einen Stammbaum aus.') ?>
+        </div>
+
+    <?php elseif ($manuell === [] && $automatisch === [] && $unverknuepftGesamt === 0) : ?>
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <?= I18N::translate('Dieser Stammbaum enthält noch keine Medienobjekte oder Sammlungen.') ?>
+        </div>
+
+    <?php elseif ($aktive !== null && $aktive['typ'] === 'unverknuepft') : ?>
+        <?php include __DIR__ . '/partials/_unverknuepft-uebersicht.phtml'; ?>
+
+    <?php elseif ($aktive !== null && $aktive['typ'] === 'unverknuepft_galerie') : ?>
+        <?php include __DIR__ . '/partials/_unverknuepft-galerie.phtml'; ?>
+
+    <?php elseif ($aktive !== null && $aktive['typ'] === 'ordner') : ?>
+        <?php include __DIR__ . '/partials/_detail-ordner.phtml'; ?>
+
+    <?php elseif ($aktive !== null) : ?>
+        <?php include __DIR__ . '/partials/_detail-manuell.phtml'; ?>
+
+    <?php else : ?>
+        <?php include __DIR__ . '/partials/_uebersicht.phtml'; ?>
+
+    <?php endif ?>
+
+</div>
+
+<style>
+.archiv-card-hover { transition: box-shadow .15s, transform .15s; }
+.archiv-card-hover:hover { box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.12) !important; transform: translateY(-2px); }
+.archiv-lb-dialog { max-width: min(95vw, 1200px); width: 100%; }
+#archiv-lb-sidebar { transition: width .2s; }
+
+/* Masonry-Galerie */
+.archiv-masonry {
+    columns: 2; column-gap: .5rem;
+}
+@media (min-width: 576px)  { .archiv-masonry { columns: 3; } }
+@media (min-width: 992px)  { .archiv-masonry { columns: 4; } }
+@media (min-width: 1400px) { .archiv-masonry { columns: 5; } }
+
+.archiv-masonry-item {
+    break-inside: avoid;
+    margin-bottom: .5rem;
+    border-radius: .375rem;
+    overflow: hidden;
+    background: #f8f9fa;
+    box-shadow: 0 1px 4px rgba(0,0,0,.1);
+    transition: box-shadow .15s, transform .15s;
+}
+.archiv-masonry-item:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    transform: translateY(-2px);
+}
+.archiv-masonry-img {
+    width: 100%; height: auto;
+    display: block; cursor: pointer;
+    transition: opacity .15s;
+}
+.archiv-masonry-item:hover .archiv-masonry-img { opacity: .88; }
+.archiv-hover-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,.82));
+    color: #fff; padding: 1.5rem .6rem .5rem;
+    opacity: 0; transition: opacity .2s;
+    pointer-events: none;
+}
+.archiv-gallery-item:hover .archiv-hover-overlay { opacity: 1; }
+.archiv-hover-title { font-size: .8rem; font-weight: 600; line-height: 1.3; margin-bottom: .2rem; }
+.archiv-hover-meta  { font-size: .72rem; opacity: .85; }
+#archiv-lb-prev, #archiv-lb-next { opacity: .7; transition: opacity .15s; }
+#archiv-lb-prev:hover, #archiv-lb-next:hover { opacity: 1; }
+</style>

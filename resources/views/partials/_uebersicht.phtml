@@ -1,0 +1,170 @@
+<?php
+
+/**
+ * Partial: Übersicht aller Sammlungen (manuell + automatisch)
+ * mit Banner für nicht-eingebundene Medien
+ *
+ * Erwartet aus Parent-Scope:
+ *   $manuell, $automatisch
+ *   $unverknuepftGesamt, $unverknuepftUrl
+ *   $sammlungUrl (Closure)
+ *   $istAdmin, $tree, $treeName
+ */
+
+use Fisharebest\Webtrees\I18N;
+
+?>
+
+    <!-- ============================================================
+         ÜBERSICHT – nur Ordner-Sammlungen + Nicht-eingebunden-Badge
+    ============================================================ -->
+
+        <!-- Nicht-eingebunden: kompakter Warn-Banner statt Kachel -->
+        <?php if ($unverknuepftGesamt > 0) : ?>
+            <div class="alert alert-warning d-flex align-items-center gap-3 mb-4 py-2">
+                <i class="fas fa-unlink fs-5"></i>
+                <span class="flex-grow-1">
+                    <?= I18N::plural(
+                        '%s Medienobjekt ohne Personenverknüpfung',
+                        '%s Medienobjekte ohne Personenverknüpfung',
+                        $unverknuepftGesamt,
+                        I18N::number($unverknuepftGesamt)
+                    ) ?>
+                </span>
+                <a href="<?= e($unverknuepftUrl()) ?>"
+                   class="btn btn-sm btn-warning flex-shrink-0">
+                    <?= I18N::translate('Anzeigen') ?>
+                </a>
+            </div>
+        <?php endif ?>
+
+        <!-- Filter-Leiste: nur Ordner-Sammlungen -->
+        <?php if (count($manuell) > 1) : ?>
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                <a href="<?= e(route('sammlungen.sammlungen', ['tree' => $treeName])) ?>"
+                   class="btn btn-sm <?= $kategorie === '' ? 'btn-primary' : 'btn-outline-secondary' ?>">
+                    <i class="fas fa-list me-1"></i><?= I18N::translate('Alle') ?>
+                </a>
+                <?php foreach ($manuell as $s) : ?>
+                    <a href="<?= e($sammlungUrl($s->slug)) ?>"
+                       class="btn btn-sm <?= $kategorie === $s->slug ? 'btn-primary' : 'btn-outline-secondary' ?>"
+                       style="border-color:<?= e($s->farbe) ?>;
+                              <?= $kategorie === $s->slug ? "background:{$s->farbe};border-color:{$s->farbe};" : '' ?>">
+                        <i class="fas fa-<?= e($s->icon) ?> me-1"></i><?= e($s->name) ?>
+                        <?php if ($s->anzahl !== null) : ?>
+                            <span class="badge bg-white text-dark ms-1 small"><?= I18N::number($s->anzahl) ?></span>
+                        <?php endif ?>
+                    </a>
+                <?php endforeach ?>
+            </div>
+        <?php endif ?>
+
+        <!-- Kachelraster: gruppiert nach Typ -->
+        <?php
+        // Kanonisch = top-level Ordner (kein Slash). Unterverzeichnisse + manuell = thematisch.
+        $kanonisch  = array_values(array_filter($manuell, fn ($s) =>
+            $s->ordner !== null && $s->ordner !== '' && strpos($s->ordner, '/') === false
+        ));
+        $thematisch = array_values(array_filter($manuell, fn ($s) =>
+            $s->ordner === null || $s->ordner === '' || strpos($s->ordner, '/') !== false
+        ));
+        ?>
+        <?php if ($manuell === []) : ?>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <?= I18N::translate('Noch keine Sammlungen angelegt.') ?>
+                <?php if ($istAdmin) : ?>
+                    <a href="<?= e(route('sammlungen.admin.sammlungen', ['tree' => $tree->name()])) ?>" class="alert-link">
+                        <?= I18N::translate('Jetzt anlegen') ?>
+                    </a>
+                <?php endif ?>
+            </div>
+        <?php else : ?>
+            <?php if ($kanonisch !== []) : ?>
+                <h5 class="text-muted mb-3 mt-2" style="font-size:.85rem;letter-spacing:.05em;text-transform:uppercase">
+                    <i class="fas fa-folder me-1"></i><?= I18N::translate('Archiv-Ordner') ?>
+                </h5>
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4 mb-4">
+                    <?php foreach ($kanonisch as $s) : ?>
+                        <div class="col">
+                        <a href="<?= e($sammlungUrl($s->slug)) ?>" class="text-decoration-none">
+                            <div class="card h-100 shadow-sm border-0 position-relative overflow-hidden archiv-card-hover"
+                                 style="border-left:4px solid <?= e($s->farbe) ?> !important;">
+                                <div class="card-body d-flex gap-3 align-items-start">
+                                    <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle"
+                                         style="width:48px;height:48px;background:<?= e($s->farbe) ?>20">
+                                        <i class="fas fa-<?= e($s->icon) ?> fs-5" style="color:<?= e($s->farbe) ?>"></i>
+                                    </div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <h5 class="card-title mb-1 text-dark text-truncate"><?= e($s->name) ?></h5>
+                                        <?php if ($s->anzahl !== null) : ?>
+                                            <p class="card-text text-muted small mb-0">
+                                                <?= I18N::plural('%s Datei', '%s Dateien', $s->anzahl, I18N::number($s->anzahl)) ?>
+                                            </p>
+                                        <?php elseif ($s->beschreibung !== null) : ?>
+                                            <p class="card-text text-muted small mb-0">
+                                                <?= e(mb_strimwidth($s->beschreibung, 0, 90, '…')) ?>
+                                            </p>
+                                        <?php endif ?>
+                                    </div>
+                                </div>
+                                <?php if ($s->vorschau !== []) : ?>
+                                    <div class="card-footer bg-transparent border-0 pt-0 d-flex gap-1">
+                                        <?php foreach (array_slice($s->vorschau, 0, 3) as $xref) : ?>
+                                            <img src="<?= e(route(\Fisharebest\Webtrees\Http\RequestHandlers\MediaFileThumbnail::class, [
+                                                'tree' => $tree->name(), 'xref' => $xref, 'w' => 60, 'h' => 60,
+                                            ])) ?>"
+                                                 alt="" loading="lazy" class="rounded"
+                                                 style="width:48px;height:48px;object-fit:cover"
+                                                 onerror="this.style.display='none'">
+                                        <?php endforeach ?>
+                                    </div>
+                                <?php endif ?>
+                                <?php if (!$s->aktiv) : ?>
+                                    <span class="position-absolute top-0 end-0 badge bg-secondary m-2">
+                                        <?= I18N::translate('Inaktiv') ?>
+                                    </span>
+                                <?php endif ?>
+                            </div>
+                        </a>
+                    </div>
+                    <?php endforeach ?>
+                </div>
+            <?php endif ?>
+
+            <?php if ($thematisch !== []) : ?>
+                <h5 class="text-muted mb-3 mt-2" style="font-size:.85rem;letter-spacing:.05em;text-transform:uppercase">
+                    <i class="fas fa-star me-1"></i><?= I18N::translate('Thematische Sammlungen') ?>
+                </h5>
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
+                    <?php foreach ($thematisch as $s) : ?>
+                        <div class="col">
+                            <a href="<?= e($sammlungUrl($s->slug)) ?>" class="text-decoration-none">
+                                <div class="card h-100 shadow-sm border-0 position-relative overflow-hidden archiv-card-hover"
+                                     style="border:2px dashed <?= e($s->farbe) ?> !important;">
+                                    <div class="card-body d-flex gap-3 align-items-start">
+                                        <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle"
+                                             style="width:48px;height:48px;background:<?= e($s->farbe) ?>20">
+                                            <i class="fas fa-<?= e($s->icon) ?> fs-5" style="color:<?= e($s->farbe) ?>"></i>
+                                        </div>
+                                        <div class="flex-grow-1 min-w-0">
+                                            <h5 class="card-title mb-1 text-dark text-truncate"><?= e($s->name) ?></h5>
+                                            <?php if ($s->beschreibung !== null) : ?>
+                                                <p class="card-text text-muted small mb-0">
+                                                    <?= e(mb_strimwidth($s->beschreibung, 0, 90, '…')) ?>
+                                                </p>
+                                            <?php endif ?>
+                                        </div>
+                                    </div>
+                                    <?php if (!$s->aktiv) : ?>
+                                        <span class="position-absolute top-0 end-0 badge bg-secondary m-2">
+                                            <?= I18N::translate('Inaktiv') ?>
+                                        </span>
+                                    <?php endif ?>
+                                </div>
+                            </a>
+                        </div>
+                    <?php endforeach ?>
+                </div>
+            <?php endif ?>
+        <?php endif ?>
