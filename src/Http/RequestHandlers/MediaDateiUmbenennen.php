@@ -72,7 +72,7 @@ final class MediaDateiUmbenennen implements RequestHandlerInterface
         }
 
         // collection_pfad aktualisieren
-        DB::table('familienarchiv_collection_pfad')
+        DB::table('sammlungen_collection_pfad')
             ->where('pfad', '=', $altPfad)
             ->where('gedcom_id', '=', $tree->id())
             ->update(['pfad' => $neuPfad, 'updated_at' => date('Y-m-d H:i:s')]);

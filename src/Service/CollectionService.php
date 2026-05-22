@@ -36,7 +36,7 @@ class CollectionService
         $cacheKey = sprintf('collections:aktiv:%d', $tree->id());
 
         return $this->cache->remember($cacheKey, function () use ($tree): array {
-            return DB::table('familienarchiv_collection')
+            return DB::table('sammlungen_collection')
                 ->where('gedcom_id', '=', $tree->id())
                 ->where('aktiv', '=', 1)
                 ->orderBy('reihenfolge')
@@ -49,7 +49,7 @@ class CollectionService
 
     public function alle(Tree $tree): array
     {
-        return DB::table('familienarchiv_collection')
+        return DB::table('sammlungen_collection')
             ->where('gedcom_id', '=', $tree->id())
             ->orderBy('reihenfolge')
             ->orderBy('name')
@@ -60,7 +60,7 @@ class CollectionService
 
     public function findeNachSlug(Tree $tree, string $slug): ?object
     {
-        $row = DB::table('familienarchiv_collection')
+        $row = DB::table('sammlungen_collection')
             ->where('gedcom_id', '=', $tree->id())
             ->where('slug', '=', $slug)
             ->first();
@@ -70,7 +70,7 @@ class CollectionService
 
     public function findeNachId(int $id): ?object
     {
-        $row = DB::table('familienarchiv_collection')
+        $row = DB::table('sammlungen_collection')
             ->where('id', '=', $id)
             ->first();
 
@@ -101,7 +101,7 @@ class CollectionService
             );
         }
 
-        $id = (int) DB::table('familienarchiv_collection')->insertGetId([
+        $id = (int) DB::table('sammlungen_collection')->insertGetId([
             'gedcom_id'    => $tree->id(),
             'slug'         => $slug,
             'name'         => $name,
@@ -132,7 +132,7 @@ class CollectionService
         string  $ordner       = '',
         string  $ansicht      = 'foto',
     ): bool {
-        $affected = DB::table('familienarchiv_collection')
+        $affected = DB::table('sammlungen_collection')
             ->where('id', '=', $id)
             ->update([
                 'name'         => $name,
@@ -153,7 +153,7 @@ class CollectionService
 
     public function setAktiv(int $id, bool $aktiv): bool
     {
-        $affected = DB::table('familienarchiv_collection')
+        $affected = DB::table('sammlungen_collection')
             ->where('id', '=', $id)
             ->update([
                 'aktiv'      => $aktiv ? 1 : 0,
@@ -168,11 +168,11 @@ class CollectionService
     public function loeschen(int $id): bool
     {
         // Zuerst alle Zuordnungen entfernen
-        DB::table('familienarchiv_collection_medium')
+        DB::table('sammlungen_collection_medium')
             ->where('collection_id', '=', $id)
             ->delete();
 
-        $affected = DB::table('familienarchiv_collection')
+        $affected = DB::table('sammlungen_collection')
             ->where('id', '=', $id)
             ->delete();
 
@@ -187,14 +187,14 @@ class CollectionService
 
     public function pfadZuordnen(Tree $tree, int $collectionId, string $pfad, ?string $mId = null): void
     {
-        $exists = DB::table('familienarchiv_collection_pfad')
+        $exists = DB::table('sammlungen_collection_pfad')
             ->where('collection_id', '=', $collectionId)
             ->where('gedcom_id', '=', $tree->id())
             ->where('pfad', '=', $pfad)
             ->exists();
 
         if (!$exists) {
-            DB::table('familienarchiv_collection_pfad')->insert([
+            DB::table('sammlungen_collection_pfad')->insert([
                 'collection_id' => $collectionId,
                 'gedcom_id'     => $tree->id(),
                 'pfad'          => $pfad,
@@ -209,7 +209,7 @@ class CollectionService
 
     public function pfadEntfernen(Tree $tree, int $collectionId, string $pfad): void
     {
-        DB::table('familienarchiv_collection_pfad')
+        DB::table('sammlungen_collection_pfad')
             ->where('collection_id', '=', $collectionId)
             ->where('gedcom_id', '=', $tree->id())
             ->where('pfad', '=', $pfad)
@@ -224,7 +224,7 @@ class CollectionService
         $cacheKey = sprintf('collection_pfade:%d:%d:%d:%d', $tree->id(), $collectionId, $offset, $limit);
 
         return $this->cache->remember($cacheKey, function () use ($tree, $collectionId, $offset, $limit): array {
-            return DB::table('familienarchiv_collection_pfad')
+            return DB::table('sammlungen_collection_pfad')
                 ->where('collection_id', '=', $collectionId)
                 ->where('gedcom_id', '=', $tree->id())
                 ->orderBy('pfad')
@@ -242,7 +242,7 @@ class CollectionService
 
     public function anzahlPfadeSammlung(Tree $tree, int $collectionId): int
     {
-        return (int) DB::table('familienarchiv_collection_pfad')
+        return (int) DB::table('sammlungen_collection_pfad')
             ->where('collection_id', '=', $collectionId)
             ->where('gedcom_id', '=', $tree->id())
             ->count();
@@ -251,7 +251,7 @@ class CollectionService
     /** Gibt die collection_ids zurück, in denen ein Pfad bereits enthalten ist. */
     public function sammlungenDesPfades(Tree $tree, string $pfad): array
     {
-        return DB::table('familienarchiv_collection_pfad')
+        return DB::table('sammlungen_collection_pfad')
             ->where('pfad', '=', $pfad)
             ->where('gedcom_id', '=', $tree->id())
             ->pluck('collection_id')
@@ -270,14 +270,14 @@ class CollectionService
      */
     public function mediumZuordnen(Tree $tree, int $collectionId, string $mId): void
     {
-        $exists = DB::table('familienarchiv_collection_medium')
+        $exists = DB::table('sammlungen_collection_medium')
             ->where('collection_id', '=', $collectionId)
             ->where('m_id', '=', $mId)
             ->where('gedcom_id', '=', $tree->id())
             ->exists();
 
         if (!$exists) {
-            DB::table('familienarchiv_collection_medium')->insert([
+            DB::table('sammlungen_collection_medium')->insert([
                 'collection_id' => $collectionId,
                 'm_id'          => $mId,
                 'gedcom_id'     => $tree->id(),
@@ -294,7 +294,7 @@ class CollectionService
      */
     public function mediumEntfernen(Tree $tree, int $collectionId, string $mId): void
     {
-        DB::table('familienarchiv_collection_medium')
+        DB::table('sammlungen_collection_medium')
             ->where('collection_id', '=', $collectionId)
             ->where('m_id', '=', $mId)
             ->where('gedcom_id', '=', $tree->id())
@@ -317,7 +317,7 @@ class CollectionService
         $cacheKey = sprintf('collection_medien:%d:%d:%d:%d', $tree->id(), $collectionId, $offset, $limit);
 
         return $this->cache->remember($cacheKey, function () use ($tree, $collectionId, $offset, $limit): array {
-            return DB::table('familienarchiv_collection_medium')
+            return DB::table('sammlungen_collection_medium')
                 ->where('collection_id', '=', $collectionId)
                 ->where('gedcom_id', '=', $tree->id())
                 ->orderBy('created_at')
@@ -335,7 +335,7 @@ class CollectionService
      */
     public function anzahlMedien(Tree $tree, int $collectionId): int
     {
-        return (int) DB::table('familienarchiv_collection_medium')
+        return (int) DB::table('sammlungen_collection_medium')
             ->where('collection_id', '=', $collectionId)
             ->where('gedcom_id', '=', $tree->id())
             ->count();
@@ -348,7 +348,7 @@ class CollectionService
      */
     public function sammlungenDesMedias(Tree $tree, string $mId): array
     {
-        return DB::table('familienarchiv_collection_medium')
+        return DB::table('sammlungen_collection_medium')
             ->where('m_id', '=', $mId)
             ->where('gedcom_id', '=', $tree->id())
             ->pluck('collection_id')

@@ -15,7 +15,7 @@ use Psr\Http\Message\ServerRequestInterface;
  *
  * Vereint drei Quellen:
  *   (a) Automatisch aus media_file.source_media_type
- *   (b) Manuell gepflegte Sammlungen aus familienarchiv_collection
+ *   (b) Manuell gepflegte Sammlungen aus sammlungen_collection
  *   (c) Nicht-eingebundene Medien (kein OBJE-Link, Sonder-Slug __unlinked__)
  *
  * Datenaufbereitung liegt im SammlungenViewModel; dieser Handler ist nur Glue-Code.

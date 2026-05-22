@@ -142,14 +142,10 @@ Alle URLs sind unter `/tree/{tree}/archiv/…` erreichbar:
 ## Datenmodell
 
 ```sql
-familienarchiv_collection           -- Definitionen: name, slug, icon, farbe, ansicht, ordner
-familienarchiv_collection_medium    -- M:N webtrees-Medium ↔ Sammlung (m_id-basiert)
-familienarchiv_collection_pfad      -- M:N Pfad ↔ Sammlung (auch nicht-importierte Bilder)
+sammlungen_collection           -- Definitionen: name, slug, icon, farbe, ansicht, ordner
+sammlungen_collection_medium    -- M:N webtrees-Medium ↔ Sammlung (m_id-basiert)
+sammlungen_collection_pfad      -- M:N Pfad ↔ Sammlung (auch nicht-importierte Bilder)
 ```
-
-> **Hinweis:** Die Tabellennamen beginnen mit `familienarchiv_` aus historischen Gründen
-> (Modul wurde aus einem früheren kombinierten Modul herausgelöst). Funktional gehören
-> sie zum Sammlungen-Modul.
 
 ## Konfiguration
 

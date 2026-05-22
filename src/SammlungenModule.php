@@ -56,8 +56,8 @@ class SammlungenModule extends AbstractModule implements
     public function title(): string { return 'Sammlungen'; }
     public function description(): string { return 'Foto- und Dokumenten-Sammlungen mit EXIF-Anreicherung, Galerie und Lightbox.'; }
     public function customModuleAuthorName(): string { return 'Thomas Bugge'; }
-    public function customModuleVersion(): string { return '1.0.0'; }
-    public function customModuleLatestVersion(): string { return '1.0.0'; }
+    public function customModuleVersion(): string { return '1.0.1'; }
+    public function customModuleLatestVersion(): string { return '1.0.1'; }
     public function customModuleSupportUrl(): string { return ''; }
 
     public function getConfigLink(): string
@@ -173,9 +173,41 @@ class SammlungenModule extends AbstractModule implements
     {
         $schema = DB::schema();
 
+        // Migration v1.0.0 → v1.0.1: Tabellen umbenennen wenn alte Namen
+        // (`familienarchiv_*`) vorhanden, neue (`sammlungen_*`) noch nicht.
+        // Idempotent – läuft nur einmalig durch.
+        $renamings = [
+            'familienarchiv_collection'        => 'sammlungen_collection',
+            'familienarchiv_collection_medium' => 'sammlungen_collection_medium',
+            'familienarchiv_collection_pfad'   => 'sammlungen_collection_pfad',
+        ];
+        $didDdl = false;
+        foreach ($renamings as $alt => $neu) {
+            if ($schema->hasTable($alt) && !$schema->hasTable($neu)) {
+                $schema->rename($alt, $neu);
+                $didDdl = true;
+            }
+        }
+
+        // RENAME TABLE ist DDL und commit-implizit – das beendet die von
+        // webtrees' UseTransaction-Middleware aussen gestartete Transaktion.
+        // Wir starten eine neue, damit das spätere Commit der Middleware nicht
+        // mit "no active transaction" abbricht.
+        if ($didDdl) {
+            try {
+                $pdo = DB::connection()->getPdo();
+                if (!$pdo->inTransaction()) {
+                    $pdo->beginTransaction();
+                }
+            } catch (\Throwable) {
+                // Best effort – wenn's nicht klappt, schlimmstenfalls eine
+                // Warnung beim ersten Request nach dem Upgrade. Funktional egal.
+            }
+        }
+
         // Tabelle 1: Sammlungs-Definitionen
-        if (!$schema->hasTable('familienarchiv_collection')) {
-            $schema->create('familienarchiv_collection', static function (Blueprint $table): void {
+        if (!$schema->hasTable('sammlungen_collection')) {
+            $schema->create('sammlungen_collection', static function (Blueprint $table): void {
                 $table->increments('id');
                 $table->integer('gedcom_id')->unsigned();
                 $table->string('slug', 80);
@@ -191,36 +223,36 @@ class SammlungenModule extends AbstractModule implements
         }
 
         // ordner-Spalte nachrüsten
-        if ($schema->hasTable('familienarchiv_collection') && !$schema->hasColumn('familienarchiv_collection', 'ordner')) {
-            $schema->table('familienarchiv_collection', static function (Blueprint $table): void {
+        if ($schema->hasTable('sammlungen_collection') && !$schema->hasColumn('sammlungen_collection', 'ordner')) {
+            $schema->table('sammlungen_collection', static function (Blueprint $table): void {
                 $table->string('ordner', 500)->nullable()->default(null)->after('beschreibung');
             });
         }
 
         // ansicht-Spalte nachrüsten: 'foto' | 'dokument'
-        if ($schema->hasTable('familienarchiv_collection') && !$schema->hasColumn('familienarchiv_collection', 'ansicht')) {
-            $schema->table('familienarchiv_collection', static function (Blueprint $table): void {
+        if ($schema->hasTable('sammlungen_collection') && !$schema->hasColumn('sammlungen_collection', 'ansicht')) {
+            $schema->table('sammlungen_collection', static function (Blueprint $table): void {
                 $table->string('ansicht', 20)->default('foto')->after('ordner');
             });
         }
 
         // Tabelle 2: Zuordnung Medium ↔ Sammlung (m_id, für importierte Medien)
-        if (!$schema->hasTable('familienarchiv_collection_medium')) {
-            $schema->create('familienarchiv_collection_medium', static function (Blueprint $table): void {
+        if (!$schema->hasTable('sammlungen_collection_medium')) {
+            $schema->create('sammlungen_collection_medium', static function (Blueprint $table): void {
                 $table->unsignedInteger('collection_id');
                 $table->string('m_id', 20);
                 $table->unsignedInteger('gedcom_id');
                 $table->timestamps();
 
                 $table->primary(['collection_id', 'm_id', 'gedcom_id']);
-                $table->index(['gedcom_id', 'collection_id'], 'fam_col_med_gid_cid');
-                $table->index(['gedcom_id', 'm_id'], 'fam_col_med_gid_mid');
+                $table->index(['gedcom_id', 'collection_id'], 'sml_col_med_gid_cid');
+                $table->index(['gedcom_id', 'm_id'], 'sml_col_med_gid_mid');
             });
         }
 
         // Tabelle 3: Pfad-basierte Zuordnung (für alle Fotos, auch nicht-importierte)
-        if (!$schema->hasTable('familienarchiv_collection_pfad')) {
-            $schema->create('familienarchiv_collection_pfad', static function (Blueprint $table): void {
+        if (!$schema->hasTable('sammlungen_collection_pfad')) {
+            $schema->create('sammlungen_collection_pfad', static function (Blueprint $table): void {
                 $table->increments('id');
                 $table->unsignedInteger('collection_id');
                 $table->unsignedInteger('gedcom_id');
@@ -228,8 +260,8 @@ class SammlungenModule extends AbstractModule implements
                 $table->string('m_id', 20)->nullable(); // optional: webtrees-Referenz
                 $table->timestamps();
 
-                $table->unique(['collection_id', 'gedcom_id', 'pfad'], 'fam_col_pfad_unique');
-                $table->index(['gedcom_id', 'collection_id'], 'fam_col_pfad_gid_cid');
+                $table->unique(['collection_id', 'gedcom_id', 'pfad'], 'sml_col_pfad_unique');
+                $table->index(['gedcom_id', 'collection_id'], 'sml_col_pfad_gid_cid');
             });
         }
     }

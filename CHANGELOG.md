@@ -5,6 +5,15 @@ Alle nennenswerten Änderungen an diesem Modul werden hier dokumentiert.
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 und das Projekt nutzt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.0.1] – 2026-05-22
+
+### Geändert
+- DB-Tabellen umbenannt: `familienarchiv_collection*` → `sammlungen_collection*`
+  (saubere Modul-Identität, kein historischer Altlast-Name mehr).
+- Migration ist idempotent: vorhandene `familienarchiv_*`-Tabellen werden bei
+  Update einmalig umbenannt, Neuinstaller bekommen direkt die neuen Namen.
+- Datenmodell-Section in README aktualisiert.
+
 ## [1.0.0] – 2026-05-22
 
 ### Erstes eigenständiges Release
@@ -21,7 +30,7 @@ separates Modul (`ortsregister`) ausgelagert, Quellen-Funktionalität ersatzlos 
 - Abgleich-Sektion EXIF ↔ webtrees (Beschreibung, Personen)
 - Datei-Umbenennen aus der Lightbox heraus
 - Manuelle Sammlungen (CRUD): Name, Slug, Icon, Farbe, Ansicht (foto/raster/gemischt/dokument)
-- Pfad-basierte Sammlungszugehörigkeit (`familienarchiv_collection_pfad`)
+- Pfad-basierte Sammlungszugehörigkeit (`sammlungen_collection_pfad`)
 - „Nicht eingebundene Medien"-Übersicht mit Typ-Aufschlüsselung
 - Foto-Picker im Admin für manuelle Sammlungen
 - Klickbarer Aktiv-Status-Toggle in der Sammlungs-Verwaltung
@@ -32,6 +41,6 @@ separates Modul (`ortsregister`) ausgelagert, Quellen-Funktionalität ersatzlos 
 
 ### Datenmodell
 Drei DB-Tabellen werden automatisch angelegt:
-- `familienarchiv_collection` (Sammlungs-Definitionen)
-- `familienarchiv_collection_medium` (M:N mit webtrees-Medien)
-- `familienarchiv_collection_pfad` (M:N mit Dateipfaden)
+- `sammlungen_collection` (Sammlungs-Definitionen)
+- `sammlungen_collection_medium` (M:N mit webtrees-Medien)
+- `sammlungen_collection_pfad` (M:N mit Dateipfaden)

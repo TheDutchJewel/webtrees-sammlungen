@@ -142,14 +142,10 @@ All URLs live under `/tree/{tree}/archiv/…`:
 ## Data model
 
 ```sql
-familienarchiv_collection           -- Definitions: name, slug, icon, colour, view, folder
-familienarchiv_collection_medium    -- M:N webtrees medium ↔ collection (m_id-based)
-familienarchiv_collection_pfad      -- M:N path ↔ collection (also non-imported images)
+sammlungen_collection           -- Definitions: name, slug, icon, colour, view, folder
+sammlungen_collection_medium    -- M:N webtrees medium ↔ collection (m_id-based)
+sammlungen_collection_pfad      -- M:N path ↔ collection (also non-imported images)
 ```
-
-> **Note:** Table names start with `familienarchiv_` for historical reasons (the module
-> was split out of a larger `Familienarchiv` module). Functionally they belong to the
-> `Sammlungen` module.
 
 ## Configuration
 

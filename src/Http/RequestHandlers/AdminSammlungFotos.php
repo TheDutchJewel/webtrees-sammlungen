@@ -64,7 +64,7 @@ class AdminSammlungFotos implements RequestHandlerInterface
 
         // Bereits in Sammlung enthaltene Pfade (neue pfad-Tabelle)
         $inSammlung = array_values(
-            \Fisharebest\Webtrees\DB::table('familienarchiv_collection_pfad')
+            \Fisharebest\Webtrees\DB::table('sammlungen_collection_pfad')
                 ->where('collection_id', '=', $id)
                 ->where('gedcom_id', '=', $tree->id())
                 ->pluck('pfad')
